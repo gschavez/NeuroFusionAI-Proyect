@@ -1,6 +1,15 @@
+
 dataset/
 __pycache__/
 *.pyc
 .venv/
 venv/
 .env
+
+# Pytest
+.pytest_cache/
+
+# Coverage reports
+.coverage
+coverage.xml
+htmlcov/
