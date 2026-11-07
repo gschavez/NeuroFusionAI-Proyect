@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NeuroFusion AI · Tamizaje de riesgo cognitivo</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">N</span>
+      <div>
+        <h1>NeuroFusion AI</h1>
+        <p>Apoyo al tamizaje temprano de deterioro cognitivo</p>
+      </div>
+    </div>
+    <span class="chip">Prototipo educativo</span>
+  </header>
+
+  <main class="container">
+    <section class="intro">
+      <h2>Nuevo análisis</h2>
+      <p>Sube una resonancia magnética (MRI), una muestra de voz, o ambas. Con las dos fuentes el resultado es más completo.</p>
+    </section>
+
+    <div class="grid">
+      <!-- MRI -->
+      <section class="card" aria-labelledby="mri-title">
+        <h3 id="mri-title">1. Subir Resonancia MRI</h3>
+        <p class="hint">Formatos: PNG, JPG o JPEG.</p>
+        <label class="dropzone" id="mri-drop" for="mri-input">
+          <input type="file" id="mri-input" accept=".png,.jpg,.jpeg,image/png,image/jpeg" hidden>
+          <span class="dz-icon" aria-hidden="true">🧠</span>
+          <span class="dz-text">Arrastra la imagen aquí o <u>haz clic para elegirla</u></span>
+        </label>
+        <img id="mri-preview" class="preview" alt="Vista previa de la MRI" hidden>
+        <p id="mri-name" class="filename"></p>
+      </section>
+
+      <!-- AUDIO -->
+      <section class="card" aria-labelledby="audio-title">
+        <h3 id="audio-title">2. Grabar / Subir Audio</h3>
+        <p class="hint">Formatos: WAV, MP3, OGG o WEBM.</p>
+        <label class="dropzone" id="audio-drop" for="audio-input">
+          <input type="file" id="audio-input" accept=".wav,.mp3,.ogg,.webm,audio/*" hidden>
+          <span class="dz-icon" aria-hidden="true">🎙️</span>
+          <span class="dz-text">Arrastra el audio aquí o <u>haz clic para elegirlo</u></span>
+        </label>
+        <div class="recorder">
+          <button type="button" id="rec-btn" class="btn secondary">● Grabar voz</button>
+          <span id="rec-timer" class="timer" aria-live="polite">00:00</span>
+        </div>
+        <audio id="audio-preview" controls hidden></audio>
+        <p id="audio-name" class="filename"></p>
+      </section>
+    </div>
+
+    <div class="actions">
+      <button type="button" id="analyze-btn" class="btn primary" disabled>Analizar</button>
+      <button type="button" id="reset-btn" class="btn ghost">Limpiar</button>
+    </div>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+
+    <!-- RESULTADO -->
+    <section id="result" class="card result" hidden aria-live="polite">
+      <div class="result-head">
+        <h3>Resultado</h3>
+        <span id="demo-badge" class="chip warn" hidden>Datos de prueba (DEMO)</span>
+      </div>
+      <div id="risk-badge" class="risk"></div>
+      <p id="risk-detail" class="risk-detail"></p>
+
+      <h4>Probabilidades</h4>
+      <div id="bars" class="bars"></div>
+      <div id="sources" class="sources"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    NeuroFusion AI es un prototipo educativo. Sus resultados <strong>no constituyen un diagnóstico médico</strong>;
+    consulte siempre a un profesional de la salud.
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
