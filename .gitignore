@@ -1,6 +1,21 @@
-dataset/
+﻿# Python
 __pycache__/
-*.pyc
-.venv/
+*.py[cod]
+
+# Virtual environments
 venv/
-.env
+.venv/
+env/
+
+# Backup files
+*.bak
+
+# Duplicated CSVs (use data/ instead of models/)
+models/mri_predictions.csv
+
+# Dataset (too large)
+dataset/
+
+# IDE
+.vscode/
+.idea/
