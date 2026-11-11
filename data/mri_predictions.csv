@@ -1,4 +1,4 @@
-patient_id,y_true,prob_Normal,prob_Leve,prob_Moderado
+patient_id,y_true,prob_normal,prob_mild,prob_moderate
 0,1,0.030588,0.9693,0.000112
 1,1,0.304009,0.695194,0.000797
 2,1,0.019611,0.980283,0.000106

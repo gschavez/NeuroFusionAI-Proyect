@@ -50,7 +50,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATASET_PATH = BASE_DIR / "dataset"
 MODEL_PATH = BASE_DIR / "models" / "mri_classifier.pkl"
 METRICS_PATH = BASE_DIR / "models" / "mri_metrics.json"
-CSV_PATH = BASE_DIR / "models" / "mri_predictions.csv"
+CSV_PATH = BASE_DIR / "data" / "mri_predictions.csv"
 
 CLASSES_4 = {
     1: "Mild Demented",
@@ -65,7 +65,7 @@ SHORT_NAMES_4 = {
     4: "very_mild_demented",
 }
 
-CLASSES_3 = ["Normal", "Leve", "Moderado"]
+CLASSES_3 = ["Normal", "Mild", "Moderate"]
 MAP_4_TO_3 = {1: 1, 2: 2, 3: 0, 4: 1}
 
 IMG_SIZE = (128, 128)
@@ -274,7 +274,7 @@ def main():
     pb = probas[best]
     with open(CSV_PATH, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["patient_id", "y_true", "prob_Normal", "prob_Leve", "prob_Moderado"])
+        w.writerow(["patient_id", "y_true", "prob_normal", "prob_mild", "prob_moderate"])
         for i in range(len(idx_test)):
             w.writerow([
                 i, int(y3[idx_test[i]]),
