@@ -1,0 +1,44 @@
+{
+  "best_model": "KNN",
+  "models": {
+    "RandomForest": {
+      "accuracy": 0.8167,
+      "f1_score": 0.7674,
+      "weighted_f1": 0.8163,
+      "precision_macro": 0.8771,
+      "recall_macro": 0.7133,
+      "train_time_sec": 4.2
+    },
+    "SVM": {
+      "accuracy": 0.8979,
+      "f1_score": 0.9312,
+      "weighted_f1": 0.8979,
+      "precision_macro": 0.9314,
+      "recall_macro": 0.9311,
+      "train_time_sec": 341.7
+    },
+    "KNN": {
+      "accuracy": 0.9812,
+      "f1_score": 0.9874,
+      "weighted_f1": 0.9812,
+      "precision_macro": 0.9874,
+      "recall_macro": 0.9874,
+      "train_time_sec": 0.5
+    }
+  },
+  "classes": [
+    "Normal",
+    "Leve",
+    "Moderado"
+  ],
+  "label_mapping": {
+    "description": "0=Normal, 1=Leve, 2=Moderado",
+    "original_to_fusion": {
+      "Mild Demented": "Leve",
+      "Very Mild Demented": "Leve",
+      "Moderate Demented": "Moderado",
+      "Non Demented": "Normal"
+    }
+  },
+  "feature_type": "HOG"
+}

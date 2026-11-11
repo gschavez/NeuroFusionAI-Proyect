@@ -111,19 +111,46 @@ def predict_mri():
     if "file" not in request.files:
         return jsonify({"error": "No file received. Use the 'file' field."}), 400
     file = request.files["file"]
-    if file.filename == "":
-        return jsonify({"error": "No file selected."}), 400
-    
-    allowed_extensions = {".png", ".jpg", ".jpeg", ".dcm"}
-    extension = Path(file.filename).suffix.lower()
-    if extension not in allowed_extensions:
-        return jsonify({"error": "Format not allowed. Use PNG, JPG, JPEG or DCM."}), 400
 
-    # TODO: Person 1 will integrate their model here later
+    import os, tempfile
+    from src.predict_mri import predict_mri as run_inference
+
+    suffix = os.path.splitext(file.filename or "")[1] or ".jpg"
+    tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+    try:
+        file.save(tmp.name)
+        tmp.close()
+        result = run_inference(tmp.name)
+    except Exception as e:
+        return jsonify({"error": f"Inference failed: {e}"}), 500
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+
+    # --- Optional: persist to Supabase (only if the client was created) ---
+    try:
+        if "supabase" in globals():
+            supabase.table("predictions").insert({
+                "user_id": 1,
+                "patient_id": None,
+                "mri_image_path": file.filename,
+                "audio_path": "N/A",
+                "mri_probability": float(result["confidence"]),
+                "audio_probability": 0.0,
+                "final_result": result["class_name"],
+            }).execute()
+            print("MRI prediction saved to Supabase.")
+    except Exception as db_error:
+        print(f"Error saving MRI prediction to Supabase: {db_error}")
+
     return jsonify({
-        "message": "MRI image received successfully.",
+        "message": "MRI image analyzed successfully.",
         "filename": file.filename,
-        "probabilities": [0.33, 0.33, 0.34] # Fake probs for frontend testing
+        "class_name": result["class_name"],
+        "confidence": result["confidence"],
+        "probabilities": result["probabilities_list"],  # [Normal, Mild, Moderate]
     }), 200
 
 

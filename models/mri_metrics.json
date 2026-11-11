@@ -1,0 +1,37 @@
+{
+  "best_model": "SVM",
+  "models": {
+    "RandomForest": {
+      "accuracy": 0.7957,
+      "f1_score": 0.6789,
+      "weighted_f1": 0.7952,
+      "precision_macro": 0.8621,
+      "recall_macro": 0.6287,
+      "train_time_sec": 4.9
+    },
+    "SVM": {
+      "accuracy": 0.8717,
+      "f1_score": 0.913,
+      "weighted_f1": 0.8719,
+      "precision_macro": 0.9126,
+      "recall_macro": 0.9137,
+      "train_time_sec": 15.8
+    },
+    "KNN": {
+      "accuracy": 0.7969,
+      "f1_score": 0.5313,
+      "weighted_f1": 0.7933,
+      "precision_macro": 0.5297,
+      "recall_macro": 0.5331,
+      "train_time_sec": 0.7
+    }
+  },
+  "classes": [
+    "Normal",
+    "Leve",
+    "Moderado"
+  ],
+  "split_strategy": "GroupShuffleSplit_by_pHash",
+  "phash_threshold": 8,
+  "note": "Split by perceptual hash to prevent data leakage from near-duplicate MRI scans."
+}
