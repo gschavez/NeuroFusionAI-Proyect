@@ -1,0 +1,30 @@
+[
+    {
+        "model_name": "Random Forest",
+        "cv_f1_mean": 0.7587,
+        "cv_f1_std": 0.0338,
+        "accuracy": 0.7853,
+        "f1_score": 0.7844
+    },
+    {
+        "model_name": "Support Vector Machine (Optimized)",
+        "cv_f1_mean": 0.7971,
+        "cv_f1_std": 0.0274,
+        "accuracy": 0.8168,
+        "f1_score": 0.8168
+    },
+    {
+        "model_name": "Logistic Regression",
+        "cv_f1_mean": 0.7045,
+        "cv_f1_std": 0.0531,
+        "accuracy": 0.6754,
+        "f1_score": 0.6752
+    },
+    {
+        "model_name": "Voting Classifier (Ensemble)",
+        "cv_f1_mean": 0.8016,
+        "cv_f1_std": 0.0441,
+        "accuracy": 0.7958,
+        "f1_score": 0.7949
+    }
+]
