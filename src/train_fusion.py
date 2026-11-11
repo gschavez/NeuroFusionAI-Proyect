@@ -35,9 +35,10 @@ def train_fusion_model():
     audio_sampled = df_audio.sample(n=samples, replace=True).reset_index(drop=True)
 
     # 4. Combine Features (6 columns total: 3 MRI probs + 3 Audio probs)
+    # add_suffix is required to avoid duplicate column names in the concatenated frame
     X = pd.concat([
-        mri_sampled[['prob_normal', 'prob_mild', 'prob_moderate']],
-        audio_sampled[['prob_normal', 'prob_mild', 'prob_moderate']]
+        mri_sampled[['prob_normal', 'prob_mild', 'prob_moderate']].add_suffix('_mri'),
+        audio_sampled[['prob_normal', 'prob_mild', 'prob_moderate']].add_suffix('_audio')
     ], axis=1)
     
     # 5. Determine the final label using the Clinical Severity Rule
