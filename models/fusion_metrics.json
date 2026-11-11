@@ -1,17 +1,17 @@
 [
     {
         "model": "Logistic Regression",
-        "accuracy": 0.8855555555555555,
-        "f1_score": 0.8829043934988603
+        "accuracy": 0.77,
+        "f1_score": 0.7281669759461
     },
     {
         "model": "Random Forest",
-        "accuracy": 0.9266666666666666,
-        "f1_score": 0.9259953202827347
+        "accuracy": 0.8422222222222222,
+        "f1_score": 0.8382742592765835
     },
     {
         "model": "Support Vector Machine (SVM)",
-        "accuracy": 0.8888888888888888,
-        "f1_score": 0.8869132049983114
+        "accuracy": 0.7722222222222223,
+        "f1_score": 0.7303047140993897
     }
 ]
