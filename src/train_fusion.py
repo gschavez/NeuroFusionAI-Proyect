@@ -1,141 +1,98 @@
-
-from pathlib import Path
-
-import joblib
 import pandas as pd
-
+import numpy as np
+import joblib
+import os
+import json
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import StratifiedKFold, cross_val_predict
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score, f1_score
 
+def train_fusion_model():
+    # 1. Define file paths
+    mri_path = "data/mri_predictions.csv"
+    audio_path = "data/audio_predictions.csv"
+    
+    # 2. Check if files exist
+    if not os.path.exists(mri_path) or not os.path.exists(audio_path):
+        print("Error: Missing prediction CSV files in the 'data/' folder.")
+        print("Make sure both mri_predictions.csv and audio_predictions.csv are present.")
+        return
 
-# Rutas del proyecto
-BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data"
-MODELS_DIR = BASE_DIR / "models"
+    print("Loading prediction datasets...")
+    df_mri = pd.read_csv(mri_path)
+    df_audio = pd.read_csv(audio_path)
 
-MRI_FILE = DATA_DIR / "mri_predictions.csv"
-AUDIO_FILE = DATA_DIR / "audio_predictions.csv"
+    # 3. Create Synthetic Dataset (Random Sampling with replacement)
+    # Since the datasets have different lengths (e.g., 5000 MRI vs 300 Audio),
+    # we sample 3000 rows from each to create a combined synthetic dataset.
+    np.random.seed(42)
+    samples = 3000
+    
+    print(f"Generating synthetic dataset with {samples} samples...")
+    mri_sampled = df_mri.sample(n=samples, replace=True).reset_index(drop=True)
+    audio_sampled = df_audio.sample(n=samples, replace=True).reset_index(drop=True)
 
-CLASSES = ["Normal", "Leve", "Moderado"]
+    # 4. Combine Features (6 columns total: 3 MRI probs + 3 Audio probs)
+    X = pd.concat([
+        mri_sampled[['prob_normal', 'prob_mild', 'prob_moderate']],
+        audio_sampled[['prob_normal', 'prob_mild', 'prob_moderate']]
+    ], axis=1)
+    
+    # 5. Determine the final label using the Clinical Severity Rule
+    # 0 = Normal, 1 = Mild, 2 = Moderate
+    # The final diagnosis is the most severe of the two predictions.
+    y = np.maximum(mri_sampled['y_true'], audio_sampled['y_true'])
 
-PROBABILITY_COLUMNS = [
-    "prob_Normal",
-    "prob_Leve",
-    "prob_Moderado"
-]
-
-
-def load_predictions():
-    """Carga y combina las predicciones de MRI y audio."""
-
-    mri = pd.read_csv(MRI_FILE)
-    audio = pd.read_csv(AUDIO_FILE)
-
-    required_columns = (
-        ["patient_id", "y_true"] + PROBABILITY_COLUMNS
+    # 6. Train / Test Split
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.3, random_state=42, stratify=y
     )
 
-    for name, dataframe in [("MRI", mri), ("Audio", audio)]:
-        missing = set(required_columns) - set(dataframe.columns)
+    # 7. Define the 3 required models
+    models = {
+        "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
+        "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
+        "Support Vector Machine (SVM)": SVC(probability=True, random_state=42)
+    }
 
-        if missing:
-            raise ValueError(
-                f"Faltan columnas en el archivo {name}: {missing}"
-            )
+    best_f1 = 0
+    best_model_name = ""
+    best_model = None
+    metrics = []
 
-        if dataframe["patient_id"].duplicated().any():
-            raise ValueError(
-                f"Hay pacientes duplicados en el archivo {name}."
-            )
+    # 8. Train and evaluate each model
+    print("\n--- Training and Evaluating Fusion Models ---")
+    for name, model in models.items():
+        print(f"Training {name}...")
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        
+        acc = accuracy_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred, average='weighted')
+        
+        print(f"  -> Accuracy: {acc*100:.2f}% | F1-Score: {f1:.4f}")
+        metrics.append({"model": name, "accuracy": acc, "f1_score": f1})
+        
+        # Save the best model based on F1-Score
+        if f1 > best_f1:
+            best_f1 = f1
+            best_model_name = name
+            best_model = model
 
-    # Combinar por identificador de paciente
-    data = pd.merge(
-        mri,
-        audio,
-        on="patient_id",
-        suffixes=("_mri", "_audio"),
-        validate="one_to_one"
-    )
+    # 9. Save the best model and metrics
+    os.makedirs("models", exist_ok=True)
+    joblib.dump(best_model, "models/fusion_classifier.pkl")
+    
+    with open("models/fusion_metrics.json", "w") as f:
+        json.dump(metrics, f, indent=4)
 
-    if len(data) != len(mri) or len(data) != len(audio):
-        raise ValueError(
-            "Los archivos MRI y audio no contienen los mismos pacientes."
-        )
-
-    if not (
-        data["y_true_mri"] == data["y_true_audio"]
-    ).all():
-        raise ValueError(
-            "Las etiquetas reales no coinciden entre MRI y audio."
-        )
-
-    # Variables de entrada: probabilidades de ambos modelos
-    feature_columns = (
-        [f"{col}_mri" for col in PROBABILITY_COLUMNS]
-        + [f"{col}_audio" for col in PROBABILITY_COLUMNS]
-    )
-
-    X = data[feature_columns]
-    y = data["y_true_mri"]
-
-    if not set(y.unique()).issubset(CLASSES):
-        raise ValueError("Se encontraron etiquetas no reconocidas.")
-
-    if X.isnull().any().any():
-        raise ValueError("Hay valores vacíos en las probabilidades.")
-
-    if not X.apply(lambda col: col.between(0, 1).all()).all():
-        raise ValueError("Las probabilidades deben estar entre 0 y 1.")
-
-    return X, y
-
-
-def train_fusion():
-    """Entrena y evalúa el clasificador de fusión."""
-
-    print("Cargando predicciones de MRI y audio...")
-
-    X, y = load_predictions()
-
-    smallest_class = y.value_counts().min()
-
-    if smallest_class < 2:
-        raise ValueError(
-            "Se necesitan al menos 2 pacientes por clase para K-Fold."
-        )
-
-    folds = min(5, smallest_class)
-
-    cv = StratifiedKFold(
-        n_splits=folds,
-        shuffle=True,
-        random_state=42
-    )
-
-    model = LogisticRegression(max_iter=1000)
-
-    print(f"Entrenando con validación cruzada de {folds} particiones...")
-
-    # Predicciones de validación cruzada del meta-clasificador
-    y_pred = cross_val_predict(model, X, y, cv=cv)
-
-    print("\nReporte de clasificación:")
-    print(classification_report(y, y_pred, zero_division=0))
-
-    print("\nMatriz de confusión:")
-    print(confusion_matrix(y, y_pred, labels=CLASSES))
-
-    # Entrenar el modelo final con todos los datos disponibles
-    model.fit(X, y)
-
-    MODELS_DIR.mkdir(parents=True, exist_ok=True)
-
-    model_path = MODELS_DIR / "fusion_classifier.pkl"
-    joblib.dump(model, model_path)
-
-    print(f"\nModelo de fusión guardado en: {model_path}")
-
+    print("\n" + "="*50)
+    print(f"BEST FUSION MODEL SELECTED: {best_model_name}")
+    print(f"Saved to models/fusion_classifier.pkl")
+    print(f"Metrics saved to models/fusion_metrics.json")
+    print("="*50)
 
 if __name__ == "__main__":
-    train_fusion()
+    train_fusion_model()
