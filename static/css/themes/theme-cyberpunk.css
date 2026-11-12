@@ -1,0 +1,112 @@
+/* Soft Cyberpunk 2077 Theme - Less Strain, High Readability */
+:root {
+    --bg-main: #12161F;        /* Slate Dark Blue (much softer than pure black) */
+    --bg-darker: #0B0E14;      /* For navbar/footer */
+    --text-main: #D1D5DB;      /* Soft off-white/gray */
+    --primary: #FACC15;        /* Muted Neon Yellow (Tailwind yellow-400) */
+    --accent: #38BDF8;         /* Soft Cyan (Tailwind sky-400) */
+    --danger: #F43F5E;         /* Soft Rose/Red */
+    --card-bg: #1B222C;        /* Slightly lighter than background for cards */
+    --border-color: #2A3441;   /* Subtle gray-blue borders */
+    
+    /* Bootstrap Overrides */
+    --bs-body-bg: var(--bg-main);
+    --bs-body-color: var(--text-main);
+    --bs-primary: var(--primary);
+    --bs-body-font-family: 'IBM Plex Sans', sans-serif;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+}
+
+/* Typography */
+h1, h2, h3, h4, .editorial-title {
+    color: var(--primary);
+    font-family: 'IBM Plex Mono', monospace; /* Keeping the tech look */
+    font-weight: 600;
+}
+
+.section-number {
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+}
+
+/* Cards */
+.clinical-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px; /* Slight rounding to feel modern but sharp */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Navbar */
+.navbar {
+    background-color: var(--bg-darker) !important;
+    border-bottom: 1px solid var(--border-color);
+}
+.navbar-brand {
+    color: var(--primary) !important;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+.nav-link {
+    color: var(--text-main) !important;
+    font-weight: 500;
+}
+.nav-link:hover {
+    color: var(--accent) !important;
+}
+
+/* Buttons */
+.btn-custom {
+    background-color: var(--primary);
+    color: #12161F; /* Dark text inside yellow button */
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+.btn-custom:hover {
+    background-color: var(--accent);
+    color: #12161F;
+}
+
+/* Forms */
+.form-control {
+    background-color: var(--bg-darker);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+.form-control:focus {
+    background-color: var(--bg-darker);
+    color: var(--text-main);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 0.25rem rgba(56, 189, 248, 0.25);
+}
+
+/* Tables */
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--text-main);
+}
+.table-light {
+    --bs-table-bg: var(--card-bg);
+    --bs-table-color: var(--accent);
+}
+.table-light th {
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Utility */
+.text-muted {
+    color: #9CA3AF !important; /* Soft gray for muted text */
+}
+hr {
+    border-color: var(--border-color);
+    opacity: 1;
+}

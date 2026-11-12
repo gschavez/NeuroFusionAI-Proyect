@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row align-items-center mb-5">
+    <div class="col-lg-8">
+        <span class="section-number">01 — INTRODUCTION</span>
+        <h1 class="display-3 mb-4" style="line-height: 1.1;">Multimodal cognitive<br>screening.</h1>
+        <p class="lead mb-4" style="max-width: 600px;">
+            NeuroFusion AI reduces the omission rate in initial Alzheimer's evaluations by combining magnetic resonance imaging (MRI) analysis with the acoustic analysis of the patient's voice.
+        </p>
+        <div class="d-flex gap-3 mt-4">
+            <a href="/login" class="btn btn-custom">Start Evaluation</a>
+            <a href="/models" class="btn btn-outline-dark rounded-0">View Models</a>
+        </div>
+    </div>
+    <div class="col-lg-4 text-end d-none d-lg-block">
+        <!-- Clinical SVG illustration placeholder -->
+        <div style="width: 100%; height: 300px; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; color: var(--border-color);">
+            [Clinical Illustration]
+        </div>
+    </div>
+</div>
+
+<hr class="my-5">
+
+<div class="row mt-5">
+    <div class="col-md-4">
+        <span class="section-number">02 — THE PROBLEM</span>
+        <h3>False Negatives</h3>
+        <p class="text-muted">Traditional methods rely on a single modality. Missing an early signal can delay critical intervention.</p>
+    </div>
+    <div class="col-md-4">
+        <span class="section-number">03 — THE SOLUTION</span>
+        <h3>Late Fusion</h3>
+        <p class="text-muted">The system processes the image and voice separately, and a meta-classifier combines both probabilities.</p>
+    </div>
+    <div class="col-md-4">
+        <span class="section-number">04 — THE RESULT</span>
+        <h3>Risk Level</h3>
+        <p class="text-muted">The physician receives a risk level (Normal, Mild, or Moderate) with the exact probabilities calculated by the model.</p>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,18 @@
+:root {
+    --bg-main: #E8F4F8; --text-main: #102A43; --primary: #4A90E2; 
+    --accent: #FF85A2; --danger: #E53935; --card-bg: #FFFFFF; --border-color: #CBD5E1;
+    --bs-body-bg: var(--bg-main); --bs-body-color: var(--text-main); --bs-primary: var(--primary);
+}
+body { background-color: var(--bg-main); color: var(--text-main); }
+h1, h2, h3, h4 { color: var(--primary); }
+.section-number { color: var(--accent); }
+.clinical-card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+.navbar { background-color: var(--card-bg) !important; border-bottom: 1px solid var(--border-color); }
+.navbar-brand, .nav-link { color: var(--text-main) !important; }
+.btn-custom { background-color: var(--accent); color: #fff; border: none; }
+.btn-custom:hover { background-color: var(--primary); color: #fff; }
+.form-control { background-color: #fff; border: 1px solid var(--border-color); }
+.form-control:focus { border-color: var(--accent); box-shadow: 0 0 0 0.25rem rgba(255,133,162,0.25); }
+.table { --bs-table-bg: transparent; --bs-table-color: var(--text-main); }
+.table-light { --bs-table-bg: #F0F8FF; --bs-table-color: var(--primary); }
+hr { border-color: var(--border-color); opacity: 1; }

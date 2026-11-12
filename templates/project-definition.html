@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Header -->
+<div class="row mb-5">
+    <div class="col-lg-9">
+        <span class="section-number">PROJECT DEFINITION</span>
+        <h1 class="display-3 mb-4" style="line-height: 1.1;">The Silent Gap in Early Detection.</h1>
+        <p class="lead mb-4" style="max-width: 700px;">
+            Alzheimer's disease affects over 55 million people globally. Despite its prevalence, traditional screening methods remain invasive, expensive, or insufficient to capture subtle early-stage cognitive decline.
+        </p>
+    </div>
+</div>
+
+<hr class="my-5">
+
+<!-- Problem & Solution -->
+<div class="row mb-5 g-5">
+    <div class="col-md-6">
+        <span class="section-number">01 — THE PROBLEM</span>
+        <h3 class="mb-3">Unimodal Limitations</h3>
+        <p class="text-muted text-justify">
+            Conventional diagnostic approaches rely heavily on isolated data sources. Magnetic Resonance Imaging (MRI) provides structural insights but can miss functional decline. Conversely, neuropsychological tests and speech analysis capture functional state but lack structural context. This lack of integration leads to high omission rates in initial evaluations.
+        </p>
+    </div>
+    <div class="col-md-6">
+        <span class="section-number">02 — THE SOLUTION</span>
+        <h3 class="mb-3">Multimodal Late Fusion</h3>
+        <p class="text-muted text-justify">
+            NeuroFusion AI integrates structural brain data (MRI) with functional speech biomarkers (Audio) using a Late Fusion meta-classifier. By processing each modality independently and combining their probabilities, the system mirrors clinical diagnostic reasoning, providing a more robust and holistic screening tool.
+        </p>
+    </div>
+</div>
+
+<hr class="my-5">
+
+<!-- Objectives -->
+<div class="row mb-5">
+    <div class="col-md-4">
+        <span class="section-number">03 — OBJECTIVES</span>
+        <h2>What We Set Out to Achieve</h2>
+    </div>
+    <div class="col-md-8">
+        <div class="clinical-card mb-3">
+            <h5>General Objective</h5>
+            <p class="mb-0 text-muted">Develop a multimodal cognitive screening support system based on Machine Learning, combining MRI and voice analysis to reduce the omission rate in initial Alzheimer's evaluations.</p>
+        </div>
+        
+        <h5 class="mt-4 mb-3">Specific Objectives</h5>
+        <ul class="list-group list-group-flush border-top border-bottom" style="border-color: var(--border-color) !important;">
+            <li class="list-group-item bg-transparent text-muted border-0 py-3">
+                <strong class="text-dark">1. Audio Model:</strong> Train a classifier capable of detecting Alzheimer's vocal patterns (MFCCs, pauses) achieving an F1-Score > 0.80.
+            </li>
+            <li class="list-group-item bg-transparent text-muted border-0 py-3">
+                <strong class="text-dark">2. MRI Model:</strong> Develop a structural classifier to identify cognitive stages (Normal, Mild, Moderate).
+            </li>
+            <li class="list-group-item bg-transparent text-muted border-0 py-3">
+                <strong class="text-dark">3. Late Fusion:</strong> Implement a meta-classifier that optimally weights the probabilities of both modalities.
+            </li>
+            <li class="list-group-item bg-transparent text-muted border-0 py-3">
+                <strong class="text-dark">4. Deployment:</strong> Expose the system via a REST API with a relational database (Supabase) and a web interface.
+            </li>
+        </ul>
+    </div>
+</div>
+
+<hr class="my-5">
+
+<!-- Scope & Limitations -->
+<div class="row g-5">
+    <div class="col-md-6">
+        <span class="section-number">04 — SCOPE</span>
+        <h4 class="mb-3">What This System Is</h4>
+        <ul class="list-unstyled text-muted">
+            <li class="mb-2">✓ An academic prototype for clinical screening support.</li>
+            <li class="mb-2">✓ A pipeline built with open-source Machine Learning tools (Scikit-Learn).</li>
+            <li class="mb-2">✓ A user-friendly web application for medical professionals.</li>
+        </ul>
+    </div>
+    <div class="col-md-6">
+        <span class="section-number">05 — LIMITATIONS</span>
+        <h4 class="mb-3">What This System Isn't</h4>
+        <ul class="list-unstyled text-muted">
+            <li class="mb-2">✗ A replacement for professional medical diagnosis.</li>
+            <li class="mb-2">✗ A model trained on massive clinical cohorts (limited to public datasets like ADCeleb and Mendeley).</li>
+            <li class="mb-2">✗ A system free of noise (YouTube audio contains background noise).</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

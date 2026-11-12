@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-5">
+    <div class="col-lg-9">
+        <span class="section-number">MODULE 03</span>
+        <h1 class="display-4 mb-4">Late Fusion (Ensemble)</h1>
+        <p class="lead">Combining structural and functional biomarkers via meta-classification.</p>
+    </div>
+</div>
+
+<hr class="my-5">
+
+<div class="row g-5">
+    <div class="col-md-6">
+        <h3>The Fusion Strategy</h3>
+        <p class="text-muted">Because the MRI and Audio datasets come from different patients, we could not perform a direct 1-to-1 merge. Instead, we implemented <strong>Synthetic Late Fusion</strong>.</p>
+        <p class="text-muted">We randomly sampled 3,000 combinations of MRI probabilities and Audio probabilities. The final ground truth label was determined by a Clinical Severity Rule: <code>y_true = max(mri_label, audio_label)</code>.</p>
+        
+        <h3 class="mt-4">Input Features</h3>
+        <p class="text-muted">The meta-classifier receives a 6-dimensional vector:</p>
+        <ul class="text-muted mono-number" style="font-size: 0.85rem;">
+            <li>prob_normal_mri, prob_mild_mri, prob_moderate_mri</li>
+            <li>prob_normal_audio, prob_mild_audio, prob_moderate_audio</li>
+        </ul>
+    </div>
+    <div class="col-md-6">
+        <h3>Benchmarking</h3>
+        <p class="text-muted">We trained three meta-classifiers on the synthetic dataset:</p>
+        
+        <table class="table table-sm table-borderless mono-number mt-3" style="font-size: 0.9rem;">
+            <thead>
+                <tr class="border-bottom" style="border-color: var(--border-color) !important;">
+                    <th>Meta-Classifier</th>
+                    <th>F1-Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>SVM</td>
+                    <td>0.7400</td>
+                </tr>
+                <tr>
+                    <td>Random Forest</td>
+                    <td>0.7800</td>
+                </tr>
+                <tr class="border-top" style="border-color: var(--accent) !important;">
+                    <td><strong>Logistic Regression (Winner)</strong></td>
+                    <td><strong style="color: var(--accent);">0.8000</strong></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="clinical-card mt-4">
+            <h5>Why Logistic Regression?</h5>
+            <p class="text-muted small mb-0">Logistic Regression is inherently probabilistic. It acts as a perfect mathematical arbitrator, learning exactly how much weight to give to the MRI versus the Audio prediction when making the final decision.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
