@@ -1,0 +1,131 @@
+/* EVA-01 Theme - Inspired by the Mecha, not NERV */
+:root {
+    --bg-main: #12081F;         /* Deep Purple / Almost Black armor */
+    --text-main: #F4F4F9;       /* Pale grayish-white for readability */
+    --primary: #00FF41;         /* Iconic EVA-01 Neon Green */
+    --accent: #9D00FF;          /* Bright EVA-01 Violet */
+    --danger: #FF0033;          /* EVA-02 Blood Red (for alerts) */
+    --card-bg: #1D0E33;         /* Slightly lighter purple for cards */
+    --border-color: #442A5C;    /* Metallic dark purple border */
+    
+    /* Bootstrap Overrides */
+    --bs-body-bg: var(--bg-main);
+    --bs-body-color: var(--text-main);
+    --bs-primary: var(--primary);
+    --bs-body-font-family: 'IBM Plex Sans', sans-serif;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    font-family: 'IBM Plex Sans', sans-serif;
+}
+
+/* Typography */
+h1, h2, h3, h4, .editorial-title {
+    color: var(--primary);
+    font-family: 'Fraunces', serif; /* Serif gives that organic/biological feel */
+    font-weight: 700;
+    text-shadow: 0px 0px 8px rgba(0, 255, 65, 0.2); /* Slight neon glow */
+}
+
+/* Sharp, aggressive mecha-like corners */
+.section-number {
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+/* Cards with a bio-mechanical look */
+.clinical-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--accent);
+    border-radius: 0px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+/* Navbar */
+.navbar {
+    background-color: #0A0410 !important;
+    border-bottom: 2px solid var(--primary);
+}
+.navbar-brand {
+    color: var(--primary) !important;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+.nav-link {
+    color: var(--text-main) !important;
+    font-weight: 500;
+}
+.nav-link:hover {
+    color: var(--primary) !important;
+    text-shadow: 0 0 5px var(--primary);
+}
+
+/* Buttons */
+.btn-custom {
+    background-color: var(--primary);
+    color: #000; /* Black text for stark contrast against neon green */
+    border: 1px solid var(--primary);
+    border-radius: 0px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+.btn-custom:hover {
+    background-color: transparent;
+    color: var(--primary);
+    box-shadow: 0 0 15px var(--primary); /* Glowing effect */
+}
+
+.btn-outline-dark {
+    color: var(--accent) !important;
+    border-color: var(--accent) !important;
+    border-radius: 0px;
+}
+.btn-outline-dark:hover {
+    background-color: var(--accent) !important;
+    color: #fff !important;
+}
+
+/* Forms */
+.form-control {
+    background-color: #0A0410;
+    color: var(--primary);
+    border: 1px solid var(--border-color);
+    border-radius: 0px;
+}
+.form-control:focus {
+    background-color: #0A0410;
+    color: var(--primary);
+    border-color: var(--primary);
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+}
+
+/* Tables */
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--text-main);
+    border-color: var(--border-color);
+}
+.table-light {
+    --bs-table-bg: var(--card-bg);
+    --bs-table-color: var(--primary);
+}
+.table-light th {
+    border-bottom: 2px solid var(--accent);
+}
+
+/* Utility overrides for dark mode */
+.text-muted {
+    color: #A0A0B0 !important;
+}
+hr {
+    border-color: var(--border-color);
+    opacity: 1;
+    border-top-width: 2px;
+}

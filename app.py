@@ -5,7 +5,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
 from dotenv import load_dotenv
 from supabase import create_client
 
@@ -16,6 +16,7 @@ from src.predict_audio import get_audio_prediction
 load_dotenv(override=True)
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "dev-key-super-secret-123")
 
 # --- SUPABASE CONNECTION ---
 supabase_url = os.environ.get("SUPABASE_URL")
@@ -28,12 +29,12 @@ else:
 
 
 def save_prediction(record):
-    """Insert one row in the Supabase 'predictions' table.
-    Never breaks the endpoint if the database fails."""
+    """Insert one row in the Supabase 'predictions' table."""
     if supabase is None:
         print("Supabase not configured: prediction was not saved.")
         return
     try:
+        record["user_id"] = session.get("user_id", 1)
         supabase.table("predictions").insert(record).execute()
         print("Prediction saved to Supabase.")
     except Exception as db_error:
@@ -42,42 +43,18 @@ def save_prediction(record):
 
 BASE_DIR = Path(__file__).resolve().parent
 FUSION_MODEL_PATH = BASE_DIR / "models" / "fusion_classifier.pkl"
-
 CLASSES = ["Normal", "Mild", "Moderate"]
 
-# Must match the feature names/order used in src/train_fusion.py
 FEATURES = [
-    "prob_normal_mri",
-    "prob_mild_mri",
-    "prob_moderate_mri",
-    "prob_normal_audio",
-    "prob_mild_audio",
-    "prob_moderate_audio",
+    "prob_normal_mri", "prob_mild_mri", "prob_moderate_mri",
+    "prob_normal_audio", "prob_mild_audio", "prob_moderate_audio",
 ]
 
-# The audio model is binary (healthy vs AD). data/audio_predictions.csv splits the
-# AD probability into Mild/Moderate with a fixed ratio. The endpoint MUST use the
-# same ratio, otherwise the fusion model sees different data than it was trained on.
-# NOTE: 0.7 was inferred from the CSV (mild = 0.7 * p_ad, moderate = 0.3 * p_ad).
-# Confirm it against src/generate_audio_predictions.py.
-AUDIO_MILD_SHARE = 0.7
-
-
-def audio_to_three_classes(prob_ad):
-    prob_ad = float(prob_ad)
-    return [
-        1.0 - prob_ad,                       # Normal
-        AUDIO_MILD_SHARE * prob_ad,          # Mild
-        (1.0 - AUDIO_MILD_SHARE) * prob_ad,  # Moderate
-    ]
-
-
-# Load fusion model (if it exists yet)
 fusion_model = None
 if FUSION_MODEL_PATH.exists():
     fusion_model = joblib.load(FUSION_MODEL_PATH)
 else:
-    print("Warning: fusion_classifier.pkl not found. /predict_fusion will fail until it is trained.")
+    print("Warning: fusion_classifier.pkl not found.")
 
 
 def combine_probabilities(mri_probabilities, audio_probabilities):
@@ -92,14 +69,12 @@ def combine_probabilities(mri_probabilities, audio_probabilities):
         raise ValueError("MRI probabilities must sum to 1.")
     if not np.isclose(sum(values[3:]), 1.0, atol=0.01):
         raise ValueError("Audio probabilities must sum to 1.")
-    # DataFrame with the same column names used during training
     return pd.DataFrame([values], columns=FEATURES)
 
 
-@app.route("/", methods=["GET"])
-def home():
-    return jsonify({"message": "NeuroFusion AI API is running", "status": "OK"})
-
+# ==========================================
+# API ROUTES
+# ==========================================
 
 @app.route("/predict_fusion", methods=["POST"])
 def predict_fusion():
@@ -110,6 +85,10 @@ def predict_fusion():
 
         mri = data.get("mri_probabilities")
         audio = data.get("audio_probabilities")
+        
+        # Get filenames from the frontend request
+        mri_filename = data.get("mri_filename", "N/A")   
+        audio_filename = data.get("audio_filename", "N/A") 
 
         if not isinstance(mri, list) or not isinstance(audio, list):
             return jsonify({"error": "You must provide lists of MRI and audio probabilities."}), 400
@@ -120,8 +99,6 @@ def predict_fusion():
             return jsonify({"error": "The fusion model is not trained yet."}), 503
 
         X = combine_probabilities(mri, audio)
-
-        # The model was trained with labels 0/1/2 -> Normal/Mild/Moderate
         prediction_index = int(fusion_model.predict(X)[0])
         prediction_name = CLASSES[prediction_index]
         probabilities = fusion_model.predict_proba(X)[0]
@@ -135,19 +112,17 @@ def predict_fusion():
             "notice": "Educational prototype. Not a medical diagnosis."
         }
 
-        # --- SAVE TO SUPABASE (final fusion prediction) ---
+        # SAVE EVERYTHING IN A SINGLE ROW
         save_prediction({
-            "user_id": 1,  # Hardcoded for now
             "patient_id": None,
-            "mri_image_path": "N/A",
-            "audio_path": "N/A",
+            "mri_image_path": mri_filename,
+            "audio_path": audio_filename,
             "mri_probability": float(max(mri)),
             "audio_probability": float(max(audio)),
             "final_result": prediction_name,
         })
 
         return jsonify(result), 200
-
     except (ValueError, TypeError) as error:
         return jsonify({"error": str(error)}), 400
     except Exception as e:
@@ -162,7 +137,6 @@ def predict_mri():
     if file.filename == "":
         return jsonify({"error": "No file selected."}), 400
 
-    # Imported here so the API still starts if the MRI model has a problem
     from src.predict_mri import predict_mri as run_inference
 
     suffix = os.path.splitext(file.filename)[1] or ".jpg"
@@ -179,22 +153,13 @@ def predict_mri():
         except OSError:
             pass
 
-    save_prediction({
-        "user_id": 1,
-        "patient_id": None,
-        "mri_image_path": file.filename,
-        "audio_path": "N/A",
-        "mri_probability": float(result["confidence"]),
-        "audio_probability": 0.0,
-        "final_result": result["class_name"],
-    })
-
+    # Note: DB saving removed from here to avoid duplicate entries
     return jsonify({
         "message": "MRI image analyzed successfully.",
         "filename": file.filename,
         "class_name": result["class_name"],
         "confidence": result["confidence"],
-        "probabilities": result["probabilities_list"],  # [Normal, Mild, Moderate]
+        "probabilities": result["probabilities_list"],
     }), 200
 
 
@@ -211,48 +176,121 @@ def predict_audio():
     if extension not in allowed_extensions:
         return jsonify({"error": "Format not allowed. Use WAV, MP3, FLAC or OGG."}), 400
 
-    # Save file temporarily (safe unique name) so the audio model can read it
     tmp = tempfile.NamedTemporaryFile(suffix=extension, delete=False)
     tmp.close()
     temp_path = Path(tmp.name)
     file.save(temp_path)
 
     try:
-        # --- CALL PERSON 2'S MODEL ---
         result = get_audio_prediction(str(temp_path))
 
         if result["status"] == "error":
             return jsonify({"error": result["message"]}), 500
 
-        prob_ad = result["probability_ad"]
+        audio_probs = result["probabilities"]
 
-        # 3 probabilities [Normal, Mild, Moderate], same rule as the training CSV
-        audio_probs = [round(p, 6) for p in audio_to_three_classes(prob_ad)]
-
-        save_prediction({
-            "user_id": 1,
-            "patient_id": None,
-            "mri_image_path": "N/A",
-            "audio_path": file.filename,
-            "mri_probability": 0.0,
-            "audio_probability": float(prob_ad),
-            "final_result": result["prediction"],
-        })
-
+        # Note: DB saving removed from here to avoid duplicate entries
         return jsonify({
             "message": "Audio processed successfully.",
             "filename": file.filename,
-            "probabilities": audio_probs  # [Normal, Mild, Moderate]
+            "probabilities": [round(p, 6) for p in audio_probs]
         }), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
-        # Delete temporary file
         try:
             temp_path.unlink()
         except OSError:
             pass
+
+
+# ==========================================
+# FRONTEND ROUTES (HTML TEMPLATES)
+# ==========================================
+
+@app.route("/", methods=["GET"])
+def home():
+    return render_template("index.html")
+
+
+@app.route("/models", methods=["GET"])
+def models_page():
+    return render_template("models.html")
+
+@app.route("/model-mri", methods=["GET"])
+def model_mri():
+    return render_template("model-mri.html")
+
+@app.route("/model-audio", methods=["GET"])
+def model_audio():
+    return render_template("model-audio.html")
+
+@app.route("/model-fusion", methods=["GET"])
+def model_fusion():
+    return render_template("model-fusion.html")
+    
+
+@app.route("/project", methods=["GET"])
+def project_definition():
+    return render_template("project-definition.html")
+
+
+@app.route("/methodology", methods=["GET"])
+def methodology():
+    return render_template("methodology.html")
+
+@app.route("/team", methods=["GET"])
+def team():
+    return render_template("team.html")
+
+@app.route("/privacy", methods=["GET"])
+def privacy():
+    return render_template("privacy.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email = request.form.get("email")
+        session['user_id'] = 1  # Simulated user ID
+        session['user_email'] = email
+        return redirect(url_for('dashboard'))
+    
+    return render_template("login.html")
+
+
+@app.route("/logout", methods=["GET"])
+def logout():
+    session.pop('user_id', None)
+    session.pop('user_email', None)
+    return redirect(url_for('home'))
+
+
+@app.route("/dashboard", methods=["GET"])
+def dashboard():
+    if not session.get('user_id'):
+        flash("Please log in to access the dashboard.", "warning")
+        return redirect(url_for('login'))
+    return render_template("dashboard.html")
+
+
+@app.route("/history", methods=["GET"])
+def history():
+    if not session.get('user_id'):
+        flash("Please log in to view the history.", "warning")
+        return redirect(url_for('login'))
+    
+    predictions = []
+    if supabase is not None:
+        try:
+            user_id = session.get('user_id')
+            response = supabase.table("predictions").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+            predictions = response.data
+        except Exception as e:
+            print(f"Error fetching history: {e}")
+            
+    return render_template("history.html", predictions=predictions)
 
 
 if __name__ == "__main__":

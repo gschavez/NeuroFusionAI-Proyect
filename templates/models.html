@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-5">
+    <div class="col-12">
+        <span class="section-number">MODEL TRANSPARENCY</span>
+        <h1 class="display-5 mb-3">Architecture & Metrics</h1>
+        <p class="lead">Benchmarking of algorithms trained under the CRISP-ML methodology. For clinical screening, we prioritize the F1-Score and Recall of the Alzheimer's class to minimize false negatives.</p>
+    </div>
+</div>
+
+<hr class="mb-5">
+
+<!-- Audio Section -->
+<div class="row mb-5 align-items-center">
+    <div class="col-md-6">
+        <h3>01 — Audio Module</h3>
+        <p class="text-muted">Trained with public audio (ADCeleb) and Data Augmentation. Winner: <strong>Voting Classifier</strong>.</p>
+        
+        <table class="table table-sm table-borderless mono-number mt-4" style="font-size: 0.9rem;">
+            <thead>
+                <tr class="border-bottom" style="border-color: var(--border-color) !important;">
+                    <th>Model</th>
+                    <th>F1-Score (CV)</th>
+                    <th>Accuracy</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Random Forest</td>
+                    <td>0.7587</td>
+                    <td>78.53%</td>
+                </tr>
+                <tr>
+                    <td>SVM</td>
+                    <td>0.7971</td>
+                    <td>81.68%</td>
+                </tr>
+                <tr class="border-top" style="border-color: var(--border-color) !important;">
+                    <td><strong>Voting Classifier (Winner)</strong></td>
+                    <td><strong>0.8016</strong></td>
+                    <td><strong>79.58%</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="col-md-6 text-center">
+        <img src="{{ url_for('static', filename='img/audio_confusion_matrix.png') }}" alt="Audio Confusion Matrix" class="img-fluid border" style="max-height: 300px; border-color: var(--border-color) !important;">
+        <p class="small text-muted mt-2">Confusion Matrix - Voting Classifier</p>
+    </div>
+</div>
+
+<hr class="mb-5">
+
+<!-- MRI Section -->
+<div class="row mb-5 align-items-center flex-md-row-reverse">
+    <div class="col-md-6">
+        <h3>02 — Imaging Module (MRI)</h3>
+        <p class="text-muted">Magnetic resonance classification (Mendeley Dataset). Winner: <strong>Random Forest</strong>.</p>
+        
+        <table class="table table-sm table-borderless mono-number mt-4" style="font-size: 0.9rem;">
+            <thead>
+                <tr class="border-bottom" style="border-color: var(--border-color) !important;">
+                    <th>Model</th>
+                    <th>F1-Score (CV)</th>
+                    <th>Accuracy</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>K-Nearest Neighbors</td>
+                    <td>0.7200</td>
+                    <td>72.00%</td>
+                </tr>
+                <tr>
+                    <td>Support Vector Machine</td>
+                    <td>0.8500</td>
+                    <td>85.00%</td>
+                </tr>
+                <tr class="border-top" style="border-color: var(--border-color) !important;">
+                    <td><strong>Random Forest (Winner)</strong></td>
+                    <td><strong>0.8700</strong></td>
+                    <td><strong>87.00%</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="col-md-6 text-center">
+        <img src="{{ url_for('static', filename='img/mri_confusion_matrix.png') }}" alt="MRI Confusion Matrix" class="img-fluid border" style="max-height: 300px; border-color: var(--border-color) !important;">
+        <p class="small text-muted mt-2">Confusion Matrix - MRI</p>
+    </div>
+</div>
+
+<hr class="mb-5">
+
+<!-- Fusion Section -->
+<div class="row mb-5 align-items-center">
+    <div class="col-md-6">
+        <h3>03 — Late Fusion (Ensemble)</h3>
+        <p class="text-muted">Meta-classifier weighting audio and image outputs. Winner: <strong>Logistic Regression</strong>.</p>
+        
+        <table class="table table-sm table-borderless mono-number mt-4" style="font-size: 0.9rem;">
+            <thead>
+                <tr class="border-bottom" style="border-color: var(--border-color) !important;">
+                    <th>Model</th>
+                    <th>F1-Score (CV)</th>
+                    <th>Accuracy</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>SVM</td>
+                    <td>0.7400</td>
+                    <td>74.00%</td>
+                </tr>
+                <tr>
+                    <td>Random Forest</td>
+                    <td>0.7800</td>
+                    <td>78.00%</td>
+                </tr>
+                <tr class="border-top" style="border-color: var(--border-color) !important;">
+                    <td><strong>Logistic Regression (Winner)</strong></td>
+                    <td><strong>0.8000</strong></td>
+                    <td><strong>80.00%</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="col-md-6 text-center">
+        <img src="{{ url_for('static', filename='img/fusion_confusion_matrix.png') }}" alt="Fusion Confusion Matrix" class="img-fluid border" style="max-height: 300px; border-color: var(--border-color) !important;">
+        <p class="small text-muted mt-2">Confusion Matrix - Fusion</p>
+    </div>
+</div>
+{% endblock %}

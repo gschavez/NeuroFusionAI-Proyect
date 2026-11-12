@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-5">
+    <div class="col-lg-9">
+        <span class="section-number">MODULE 01</span>
+        <h1 class="display-4 mb-4">MRI Imaging Analysis</h1>
+        <p class="lead">Structural brain classification using classical Machine Learning algorithms.</p>
+    </div>
+</div>
+
+<hr class="my-5">
+
+<div class="row g-5">
+    <div class="col-md-6">
+        <h3>Dataset & Preprocessing</h3>
+        <p class="text-muted">We utilized the Mendeley MRI Dataset consisting of 6,400 brain scans. The original 4 classes (Non-Demented, Very Mild, Mild, Moderate) were mapped into a 3-class problem to align with the fusion model.</p>
+        <ul class="text-muted">
+            <li><strong>0 (Normal):</strong> Non-Demented</li>
+            <li><strong>1 (Mild):</strong> Very Mild + Mild Demented</li>
+            <li><strong>2 (Moderate):</strong> Moderate Demented</li>
+        </ul>
+        <h3 class="mt-4">Class Imbalance</h3>
+        <p class="text-muted">Because the "Moderate" class had only 64 samples (out of 6,400), we applied class weighting techniques to prevent the model from ignoring the minority class.</p>
+    </div>
+    <div class="col-md-6">
+        <h3>Benchmarking</h3>
+        <p class="text-muted">Three traditional classifiers were evaluated:</p>
+        
+        <table class="table table-sm table-borderless mono-number mt-3" style="font-size: 0.9rem;">
+            <thead>
+                <tr class="border-bottom" style="border-color: var(--border-color) !important;">
+                    <th>Algorithm</th>
+                    <th>F1-Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>K-Nearest Neighbors</td>
+                    <td>0.7200</td>
+                </tr>
+                <tr>
+                    <td>Support Vector Machine</td>
+                    <td>0.8500</td>
+                </tr>
+                <tr class="border-top" style="border-color: var(--accent) !important;">
+                    <td><strong>Random Forest (Winner)</strong></td>
+                    <td><strong style="color: var(--accent);">0.8700</strong></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="clinical-card mt-4">
+            <h5>Why Random Forest?</h5>
+            <p class="text-muted small mb-0">Random Forest proved highly robust against the noisy pixel data of MRI scans and handled the class imbalance better than SVM, providing the highest recall for the Alzheimer's classes.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
