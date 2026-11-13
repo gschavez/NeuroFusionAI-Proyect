@@ -1,6 +1,6 @@
 """
 Inference helper for /predict_mri. Returns 3 probabilities aligned with
-CLASSES = ["Normal", "Mild", "Moderate"] used by app.py / train_fusion.py.
+CLASSES = ["Normal", "Leve", "Moderado"] used by app.py / train_fusion.py.
 """
 
 from pathlib import Path
@@ -28,7 +28,7 @@ def predict_mri(image_path):
     model = bundle["model"]
     hog_params = bundle["feature_params"]
     img_size = tuple(bundle["img_size"])
-    classes = bundle["classes_3"]  # ["Normal", "Mild", "Moderate"]
+    classes = bundle["classes_3"]  # ["Normal", "Leve", "Moderado"]
 
     img = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
     if img is None:
