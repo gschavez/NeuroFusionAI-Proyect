@@ -19,6 +19,18 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.disabled = true;
         submitBtn.textContent = "Processing models... (This may take a few seconds)";
 
+        // Función para leer respuestas de forma segura
+        async function safeJson(response) {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+                return await response.json();
+            }
+            if (response.status === 413) {
+                throw new Error("El archivo de audio es demasiado grande para el servidor. Intenta con uno más ligero.");
+            }
+            throw new Error(`Error del servidor (Código ${response.status}).`);
+        }
+
         try {
             // 1. Preparar datos
             const mriData = new FormData();
@@ -27,19 +39,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const audioData = new FormData();
             audioData.append('file', audioFile);
 
-            // 2. Enviar peticiones al backend en paralelo
+            // 2. Enviar peticiones al backend
             const [mriRes, audioRes] = await Promise.all([
                 fetch('/predict_mri', { method: 'POST', body: mriData }),
                 fetch('/predict_audio', { method: 'POST', body: audioData })
             ]);
 
-            const mriJson = await mriRes.json();
-            const audioJson = await audioRes.json();
+            const mriJson = await safeJson(mriRes);
+            const audioJson = await safeJson(audioRes);
 
             if (!mriRes.ok) throw new Error(mriJson.error || "MRI Error");
             if (!audioRes.ok) throw new Error(audioJson.error || "Audio Error");
 
-            // 3. Llamar a la Fusión con las probabilidades obtenidas
+            // 3. Llamar a la Fusión
             const fusionData = {
                 mri_probabilities: mriJson.probabilities,
                 audio_probabilities: audioJson.probabilities,
@@ -53,31 +65,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(fusionData)
             });
 
-            const fusionJson = await fusionRes.json();
+            const fusionJson = await safeJson(fusionRes);
             if (!fusionRes.ok) throw new Error(fusionJson.error || "Fusion Error");
 
-            // 4. Mostrar resultados en pantalla
+            // 4. Mostrar resultados
             resultsSection.classList.remove('d-none');
             resultsSection.scrollIntoView({ behavior: 'smooth' });
 
-            // Resultado Final (Fusión)
             document.getElementById('finalDiagnosis').textContent = fusionJson.prediction;
             const finalProb = Math.max(...Object.values(fusionJson.probabilities));
             document.getElementById('finalConfidence').textContent = `Global confidence: ${(finalProb * 100).toFixed(2)}%`;
 
-            // Barras de MRI
             updateBar('mriNormal', mriJson.probabilities[0]);
             updateBar('mriMild', mriJson.probabilities[1]);
             updateBar('mriModerate', mriJson.probabilities[2]);
 
-            // Barras de Audio
             updateBar('audioNormal', audioJson.probabilities[0]);
             updateBar('audioMild', audioJson.probabilities[1]);
             updateBar('audioModerate', audioJson.probabilities[2]);
 
         } catch (error) {
             alert("Analysis error: " + error.message);
-            console.error("Error detallado:", error);
         } finally {
             submitBtn.disabled = false;
             submitBtn.textContent = "Execute Multimodal Fusion";
