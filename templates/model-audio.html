@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-5">
+    <div class="col-lg-9">
+        <span class="section-number">MODULE 02</span>
+        <h1 class="display-4 mb-4">Audio & Speech Analysis</h1>
+        <p class="lead">Acoustic feature extraction and ensemble learning for detecting Alzheimer's vocal biomarkers.</p>
+    </div>
+</div>
+
+<hr class="my-5">
+
+<div class="row g-5">
+    <div class="col-md-6">
+        <h3>Feature Engineering</h3>
+        <p class="text-muted">We extracted 19 distinct acoustic features using <code>librosa</code>:</p>
+        <ul class="text-muted">
+            <li>13 Mel-Frequency Cepstral Coefficients (MFCCs) for vocal tract modeling.</li>
+            <li>Pitch and RMS Energy for speech dynamics.</li>
+            <li>Pause ratio (silence detection) for hesitation markers.</li>
+            <li>Zero Crossing Rate (ZCR) and Spectral Centroid.</li>
+        </ul>
+        <h3 class="mt-4">Data Augmentation</h3>
+        <p class="text-muted">To combat the small dataset size, we added low-amplitude white noise to the original 318 samples, effectively doubling the training set to over 600 samples and improving model robustness.</p>
+    </div>
+    <div class="col-md-6">
+        <h3>Benchmarking</h3>
+        <p class="text-muted">Using Stratified K-Fold Cross-Validation (5 folds), we evaluated three algorithms:</p>
+        
+        <table class="table table-sm table-borderless mono-number mt-3" style="font-size: 0.9rem;">
+            <thead>
+                <tr class="border-bottom" style="border-color: var(--border-color) !important;">
+                    <th>Algorithm</th>
+                    <th>F1-Score (CV)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Logistic Regression</td>
+                    <td>0.7045</td>
+                </tr>
+                <tr>
+                    <td>Random Forest</td>
+                    <td>0.7587</td>
+                </tr>
+                <tr>
+                    <td>SVM (Optimized)</td>
+                    <td>0.7971</td>
+                </tr>
+                <tr class="border-top" style="border-color: var(--accent) !important;">
+                    <td><strong>Voting Classifier (Winner)</strong></td>
+                    <td><strong style="color: var(--accent);">0.8016</strong></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="clinical-card mt-4">
+            <h5>Why the Voting Classifier?</h5>
+            <p class="text-muted small mb-0">Instead of relying on a single model, the Voting Classifier combines the probabilities of Random Forest, SVM, and Logistic Regression. This ensemble approach reduced variance and achieved the highest generalization capability (F1-Score > 0.80).</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

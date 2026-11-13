@@ -19,3 +19,6 @@ dataset/
 # IDE
 .vscode/
 .idea/
+
+#env
+.env
