@@ -47,7 +47,7 @@ warnings.filterwarnings("ignore")
 # =====================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATASET_PATH = BASE_DIR / "dataset"
+DATASET_PATH = BASE_DIR / "dataset_small"
 MODEL_PATH = BASE_DIR / "models" / "mri_classifier.pkl"
 METRICS_PATH = BASE_DIR / "models" / "mri_metrics.json"
 CSV_PATH = BASE_DIR / "data" / "mri_predictions.csv"
