@@ -2,29 +2,44 @@ import joblib
 import librosa
 import numpy as np
 import os
+from functools import lru_cache
 
-def get_audio_prediction(audio_path, model_path="models/audio_classifier.pkl", scaler_path="models/audio_scaler.pkl"):
+# Define default paths
+DEFAULT_MODEL_PATH = "models/audio_classifier.pkl"
+DEFAULT_SCALER_PATH = "models/audio_scaler.pkl"
+
+# TRICK: lru_cache loads the model into RAM ONLY ONCE and reuses it
+@lru_cache(maxsize=1)
+def load_models():
+    if not os.path.exists(DEFAULT_MODEL_PATH) or not os.path.exists(DEFAULT_SCALER_PATH):
+        raise FileNotFoundError("Model or Scaler not found. Train the model first.")
+    model = joblib.load(DEFAULT_MODEL_PATH)
+    scaler = joblib.load(DEFAULT_SCALER_PATH)
+    return model, scaler
+
+def get_audio_prediction(audio_path):
     """
     Receives an audio path and returns the probabilities for Normal, Mild, and Moderate.
     """
-    if not os.path.exists(model_path) or not os.path.exists(scaler_path):
-        raise FileNotFoundError("Model or Scaler not found. Train the model first.")
-        
-    # 1. Load the trained model and scaler
-    model = joblib.load(model_path)
-    scaler = joblib.load(scaler_path)
+    # 1. Load the trained model and scaler (from cache)
+    try:
+        model, scaler = load_models()
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
     
     # 2. Extract features from the new audio (19 features)
     try:
-        # Training clips were split into chunks of at most 120 s (trim_audios.py),
-        # so we cap the load at 120 s: same range as training, bounded memory.
+        # Load audio with a maximum duration of 120s (bounded memory)
         y, sr = librosa.load(audio_path, sr=16000, mono=True, duration=120)
         
         # Basic features
         duration = librosa.get_duration(y=y, sr=sr)
         
-        pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
-        pitch_values = pitches[magnitudes > np.median(magnitudes)]
+        # CRITICAL OPTIMIZATION: Use yin instead of piptrack
+        # yin is much lighter and faster to compute pitch, preventing server crashes
+        f0 = librosa.yin(y, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'))
+        # Filter out null values that yin might return
+        pitch_values = f0[~np.isnan(f0)]
         pitch_mean = np.mean(pitch_values) if len(pitch_values) > 0 else 0.0
         
         rms = librosa.feature.rms(y=y)[0]
@@ -33,7 +48,6 @@ def get_audio_prediction(audio_path, model_path="models/audio_classifier.pkl", s
         silent_frames = np.sum(rms < silence_threshold)
         pause_ratio = silent_frames / len(rms) if len(rms) > 0 else 0.0
         
-        # NEW Features added to match the 19
         zcr = librosa.feature.zero_crossing_rate(y)[0]
         zcr_mean = np.mean(zcr)
         
@@ -55,7 +69,7 @@ def get_audio_prediction(audio_path, model_path="models/audio_classifier.pkl", s
         # 3. Predict
         probabilities = model.predict_proba(features_scaled)[0]
         
-        # Model is binary (0: Normal, 1: Alzheimer), so we split the Alzheimer prob
+        # Model is binary (0: Normal, 1: Alzheimer)
         prob_normal = float(probabilities[0])
         prob_alzheimer = float(probabilities[1])
         
