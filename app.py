@@ -1,4 +1,5 @@
 import os
+import gc
 import tempfile
 from pathlib import Path
 
@@ -150,6 +151,7 @@ def predict_mri():
             os.unlink(tmp.name)
         except OSError:
             pass
+        gc.collect()  # <--- AÑADIDO: Limpieza de memoria (MRI)
 
     # Note: DB saving removed from here to avoid duplicate entries
     return jsonify({
@@ -204,6 +206,7 @@ def predict_audio():
             temp_path.unlink()
         except OSError:
             pass
+        gc.collect()  # <--- AÑADIDO: Limpieza de memoria (Audio/Librosa)
 
 
 # ==========================================
