@@ -9,14 +9,12 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for, s
 from dotenv import load_dotenv
 from supabase import create_client
 
-# Person 2's audio prediction function
-from src.predict_audio import get_audio_prediction
-
 # Load environment variables for Supabase
 load_dotenv(override=True)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-key-super-secret-123")
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # max 25 MB per upload
 
 # --- SUPABASE CONNECTION ---
 supabase_url = os.environ.get("SUPABASE_URL")
@@ -176,6 +174,9 @@ def predict_audio():
     if extension not in allowed_extensions:
         return jsonify({"error": "Format not allowed. Use WAV, MP3, FLAC or OGG."}), 400
 
+    # Lazy import: librosa/numba are heavy, so they are loaded only when audio is used
+    from src.predict_audio import get_audio_prediction
+
     tmp = tempfile.NamedTemporaryFile(suffix=extension, delete=False)
     tmp.close()
     temp_path = Path(tmp.name)
@@ -297,4 +298,3 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=False, host="0.0.0.0", port=port)
-    
