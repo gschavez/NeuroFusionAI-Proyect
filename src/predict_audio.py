@@ -30,7 +30,7 @@ def get_audio_prediction(audio_path):
     # 2. Extract features from the new audio (19 features)
     try:
         # Load audio with a maximum duration of 120s (bounded memory)
-        y, sr = librosa.load(audio_path, sr=16000, mono=True, duration=120)
+        y, sr = librosa.load(audio_path, sr=16000, mono=True, duration=45)
         
         # Basic features
         duration = librosa.get_duration(y=y, sr=sr)
