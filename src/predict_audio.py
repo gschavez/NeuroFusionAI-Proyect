@@ -16,7 +16,9 @@ def get_audio_prediction(audio_path, model_path="models/audio_classifier.pkl", s
     
     # 2. Extract features from the new audio (19 features)
     try:
-        y, sr = librosa.load(audio_path, sr=16000)
+        # Training clips were split into chunks of at most 120 s (trim_audios.py),
+        # so we cap the load at 120 s: same range as training, bounded memory.
+        y, sr = librosa.load(audio_path, sr=16000, mono=True, duration=120)
         
         # Basic features
         duration = librosa.get_duration(y=y, sr=sr)
