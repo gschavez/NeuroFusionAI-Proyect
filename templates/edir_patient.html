@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <span class="section-number">PATIENT MANAGEMENT</span>
+        <h2 class="mb-3">Edit Patient</h2>
+    </div>
+</div>
+<hr class="mb-4">
+
+<div class="row">
+    <div class="col-md-6 mx-auto">
+        <div class="clinical-card p-4">
+            <form action="/edit_patient/{{ patient.id }}" method="POST">
+                <div class="mb-3">
+                    <label for="full_name" class="form-label">Full Name</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary rounded-0" id="full_name" name="full_name" value="{{ patient.full_name }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="age" class="form-label">Age</label>
+                    <input type="number" class="form-control bg-dark text-white border-secondary rounded-0" id="age" name="age" value="{{ patient.age }}" required>
+                </div>
+                <div class="mb-4">
+                    <label for="gender" class="form-label">Gender</label>
+                    <select class="form-select bg-dark text-white border-secondary rounded-0" id="gender" name="gender">
+                        <option value="Male" {% if patient.gender == 'Male' %}selected{% endif %}>Male</option>
+                        <option value="Female" {% if patient.gender == 'Female' %}selected{% endif %}>Female</option>
+                        <option value="Other" {% if patient.gender == 'Other' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-custom w-100 py-2">Update Patient</button>
+                    <a href="/patients" class="btn btn-outline-secondary w-100 py-2 rounded-0">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

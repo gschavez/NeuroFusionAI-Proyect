@@ -34,6 +34,7 @@ def save_prediction(record):
         return
     try:
         record["user_id"] = session.get("user_id", 1)
+        # patient_id is passed in the 'record' dictionary from the frontend
         supabase.table("predictions").insert(record).execute()
         print("Prediction saved to Supabase.")
     except Exception as db_error:
@@ -85,7 +86,8 @@ def predict_fusion():
         mri = data.get("mri_probabilities")
         audio = data.get("audio_probabilities")
         
-        # Get filenames from the frontend request
+        # Get patient ID and filenames from the frontend request
+        patient_id = data.get("patient_id")
         mri_filename = data.get("mri_filename", "N/A")   
         audio_filename = data.get("audio_filename", "N/A") 
 
@@ -111,9 +113,9 @@ def predict_fusion():
             "notice": "Educational prototype. Not a medical diagnosis."
         }
 
-        # SAVE EVERYTHING IN A SINGLE ROW
+        # SAVE EVERYTHING IN A SINGLE ROW (Now including patient_id)
         save_prediction({
-            "patient_id": None,
+            "patient_id": patient_id if patient_id else None,
             "mri_image_path": mri_filename,
             "audio_path": audio_filename,
             "mri_probability": float(max(mri)),
@@ -151,9 +153,8 @@ def predict_mri():
             os.unlink(tmp.name)
         except OSError:
             pass
-        gc.collect()  # <--- AÑADIDO: Limpieza de memoria (MRI)
+        gc.collect()  # Memory cleanup (MRI)
 
-    # Note: DB saving removed from here to avoid duplicate entries
     return jsonify({
         "message": "MRI image analyzed successfully.",
         "filename": file.filename,
@@ -192,7 +193,6 @@ def predict_audio():
 
         audio_probs = result["probabilities"]
 
-        # Note: DB saving removed from here to avoid duplicate entries
         return jsonify({
             "message": "Audio processed successfully.",
             "filename": file.filename,
@@ -206,11 +206,11 @@ def predict_audio():
             temp_path.unlink()
         except OSError:
             pass
-        gc.collect()  # <--- AÑADIDO: Limpieza de memoria (Audio/Librosa)
+        gc.collect()  # Memory cleanup (Audio/Librosa)
 
 
 # ==========================================
-# FRONTEND ROUTES (HTML TEMPLATES)
+# FRONTEND & PATIENT ROUTES
 # ==========================================
 
 @app.route("/", methods=["GET"])
@@ -238,7 +238,6 @@ def model_fusion():
 @app.route("/project", methods=["GET"])
 def project_definition():
     return render_template("project-definition.html")
-
 
 @app.route("/methodology", methods=["GET"])
 def methodology():
@@ -271,12 +270,122 @@ def logout():
     return redirect(url_for('home'))
 
 
+# ==========================================
+# PATIENT MANAGEMENT ROUTES
+# ==========================================
+
+@app.route("/patients", methods=["GET"])
+def patients_page():
+    if not session.get('user_id'):
+        return redirect(url_for('login'))
+    
+    patients_list = []
+    if supabase is not None:
+        try:
+            # Fetch all patients, ordered by newest first
+            response = supabase.table("patients").select("*").order("created_at", desc=True).execute()
+            patients_list = response.data
+        except Exception as e:
+            print(f"Error fetching patients: {e}")
+            
+    return render_template("patients.html", patients=patients_list)
+
+
+@app.route("/add_patient", methods=["POST"])
+def add_patient():
+    if not session.get('user_id') or supabase is None:
+        return jsonify({"error": "Unauthorized or DB missing"}), 401
+
+    try:
+        full_name = request.form.get("full_name")
+        age = request.form.get("age")
+        gender = request.form.get("gender")
+        
+        if not full_name:
+            flash("Patient name is required.", "danger")
+            return redirect(url_for('patients_page'))
+
+        supabase.table("patients").insert({
+            "user_id": session.get("user_id", 1),
+            "full_name": full_name,
+            "age": int(age) if age else None,
+            "gender": gender
+        }).execute()
+        
+        flash("Patient added successfully.", "success")
+    except Exception as e:
+        flash(f"Error adding patient: {str(e)}", "danger")
+        
+    return redirect(url_for('patients_page'))
+
+
+@app.route("/delete_patient/<int:patient_id>", methods=["POST"])
+def delete_patient(patient_id):
+    if not session.get('user_id') or supabase is None:
+        return redirect(url_for('login'))
+    
+    try:
+        # Supabase will also delete associated predictions if CASCADE is configured
+        supabase.table("patients").delete().eq("id", patient_id).execute()
+        flash("Patient deleted successfully.", "success")
+    except Exception as e:
+        flash(f"Error deleting patient: {str(e)}", "danger")
+        
+    return redirect(url_for('patients_page'))
+
+
+@app.route("/edit_patient/<int:patient_id>", methods=["GET", "POST"])
+def edit_patient(patient_id):
+    if not session.get('user_id') or supabase is None:
+        return redirect(url_for('login'))
+
+    if request.method == "POST":
+        try:
+            full_name = request.form.get("full_name")
+            age = request.form.get("age")
+            gender = request.form.get("gender")
+            
+            supabase.table("patients").update({
+                "full_name": full_name,
+                "age": int(age) if age else None,
+                "gender": gender
+            }).eq("id", patient_id).execute()
+            
+            flash("Patient updated successfully.", "success")
+            return redirect(url_for('patients_page'))
+        except Exception as e:
+            flash(f"Error updating patient: {str(e)}", "danger")
+
+    # Fetch patient for the form (GET)
+    try:
+        response = supabase.table("patients").select("*").eq("id", patient_id).execute()
+        if not response.data:
+            flash("Patient not found.", "danger")
+            return redirect(url_for('patients_page'))
+        patient = response.data[0]
+    except Exception as e:
+        flash(f"Error fetching patient: {str(e)}", "danger")
+        return redirect(url_for('patients_page'))
+
+    return render_template("edit_patient.html", patient=patient)
+
+
 @app.route("/dashboard", methods=["GET"])
 def dashboard():
     if not session.get('user_id'):
         flash("Please log in to access the dashboard.", "warning")
         return redirect(url_for('login'))
-    return render_template("dashboard.html")
+    
+    # Fetch patients to populate the dropdown
+    patients_list = []
+    if supabase is not None:
+        try:
+            response = supabase.table("patients").select("id, full_name, age").order("full_name").execute()
+            patients_list = response.data
+        except Exception as e:
+            print(f"Error fetching patients for dashboard: {e}")
+
+    return render_template("dashboard.html", patients=patients_list)
 
 
 @app.route("/history", methods=["GET"])
@@ -289,15 +398,46 @@ def history():
     if supabase is not None:
         try:
             user_id = session.get('user_id')
-            response = supabase.table("predictions").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+            # Get filters from URL
+            result_filter = request.args.get("result")
+            patient_filter = request.args.get("patient_id")
+            search_query = request.args.get("q")
+
+            # Base query
+            query = supabase.table("predictions").select("*, patients(full_name)").eq("user_id", user_id)
+
+            # Apply text search (Search by patient name)
+            if search_query:
+                # First, find patients matching the name
+                patient_res = supabase.table("patients").select("id").ilike("full_name", f"%{search_query}%").execute()
+                matching_ids = [p["id"] for p in patient_res.data]
+                
+                if matching_ids:
+                    query = query.in_("patient_id", matching_ids)
+                else:
+                    # If no patients match the name, force empty result
+                    query = query.eq("patient_id", -1) 
+
+            # Apply other filters
+            if result_filter:
+                query = query.eq("final_result", result_filter)
+            if patient_filter:
+                query = query.eq("patient_id", patient_filter)
+
+            response = query.order("created_at", desc=True).execute()
             predictions = response.data
         except Exception as e:
             print(f"Error fetching history: {e}")
             
-    return render_template("history.html", predictions=predictions)
+    return render_template(
+        "history.html", 
+        predictions=predictions, 
+        active_filter=request.args.get("result"), 
+        active_patient=request.args.get("patient_id"),
+        search_query=request.args.get("q")
+    )
 
 
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=False, host="0.0.0.0", port=port)

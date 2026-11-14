@@ -1,64 +1,132 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row mb-5">
-    <div class="col-lg-9">
-        <span class="section-number">MODULE 02</span>
-        <h1 class="display-4 mb-4">Audio & Speech Analysis</h1>
-        <p class="lead">Acoustic feature extraction and ensemble learning for detecting Alzheimer's vocal biomarkers.</p>
-    </div>
-</div>
-
-<hr class="my-5">
-
-<div class="row g-5">
-    <div class="col-md-6">
-        <h3>Feature Engineering</h3>
-        <p class="text-muted">We extracted 19 distinct acoustic features using <code>librosa</code>:</p>
-        <ul class="text-muted">
-            <li>13 Mel-Frequency Cepstral Coefficients (MFCCs) for vocal tract modeling.</li>
-            <li>Pitch and RMS Energy for speech dynamics.</li>
-            <li>Pause ratio (silence detection) for hesitation markers.</li>
-            <li>Zero Crossing Rate (ZCR) and Spectral Centroid.</li>
-        </ul>
-        <h3 class="mt-4">Data Augmentation</h3>
-        <p class="text-muted">To combat the small dataset size, we added low-amplitude white noise to the original 318 samples, effectively doubling the training set to over 600 samples and improving model robustness.</p>
-    </div>
-    <div class="col-md-6">
-        <h3>Benchmarking</h3>
-        <p class="text-muted">Using Stratified K-Fold Cross-Validation (5 folds), we evaluated three algorithms:</p>
-        
-        <table class="table table-sm table-borderless mono-number mt-3" style="font-size: 0.9rem;">
-            <thead>
-                <tr class="border-bottom" style="border-color: var(--border-color) !important;">
-                    <th>Algorithm</th>
-                    <th>F1-Score (CV)</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>Logistic Regression</td>
-                    <td>0.7045</td>
-                </tr>
-                <tr>
-                    <td>Random Forest</td>
-                    <td>0.7587</td>
-                </tr>
-                <tr>
-                    <td>SVM (Optimized)</td>
-                    <td>0.7971</td>
-                </tr>
-                <tr class="border-top" style="border-color: var(--accent) !important;">
-                    <td><strong>Voting Classifier (Winner)</strong></td>
-                    <td><strong style="color: var(--accent);">0.8016</strong></td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="clinical-card mt-4">
-            <h5>Why the Voting Classifier?</h5>
-            <p class="text-muted small mb-0">Instead of relying on a single model, the Voting Classifier combines the probabilities of Random Forest, SVM, and Logistic Regression. This ensemble approach reduced variance and achieved the highest generalization capability (F1-Score > 0.80).</p>
+<div class="row">
+    <div class="col-md-3 mb-4">
+        <div class="clinical-card p-4 sticky-top" style="top: 20px;">
+            <h5 class="text-accent mb-4">Audio Model</h5>
+            <nav class="nav flex-column nav-pills">
+                <a class="nav-link text-white mb-2" href="#concepts">1. Concepts</a>
+                <a class="nav-link text-white mb-2" href="#training">2. Training</a>
+                <a class="nav-link text-white mb-2" href="#metrics">3. Metrics</a>
+                <a class="nav-link text-accent fw-bold mt-3" href="#test-model">▶ Test Model</a>
+            </nav>
         </div>
     </div>
+
+    <div class="col-md-9">
+        <section id="concepts" class="mb-5">
+            <h2 class="display-6 fw-bold mb-4 text-accent">1. Concepts</h2>
+            <div class="clinical-card p-4 mb-4">
+                <h4 class="mb-3">MFCCs & Acoustic Features</h4>
+                <p class="text-muted">
+                    We extract 19 distinct features per audio sample, including 13 Mel-Frequency Cepstral Coefficients (MFCCs), pitch, Zero-Crossing Rate (ZCR), RMS energy, and spectral centroids. These help identify pauses and vocal degradation associated with cognitive decline.
+                </p>
+            </div>
+        </section>
+
+        <section id="training" class="mb-5">
+            <h2 class="display-6 fw-bold mb-4 text-accent">2. Training & Benchmarking</h2>
+            <div class="clinical-card p-4 mb-4">
+                <p class="text-muted mb-4">
+                    We tested individual algorithms and then combined them using an Ensemble approach to leverage their strengths:
+                </p>
+                
+                <div class="mb-4">
+                    <h6 class="text-info">Logistic Regression (LR)</h6>
+                    <p class="text-muted small mb-3">A statistical model that uses a logistic function to model a binary dependent variable. It provides a good linear baseline but may struggle with complex, non-linear audio patterns.</p>
+                    
+                    <h6 class="text-info">Random Forest & SVM</h6>
+                    <p class="text-muted small mb-3">Tree-based and margin-based algorithms, respectively. They perform better on complex data but still have limitations when handling the noise inherent in voice recordings.</p>
+                    
+                    <h6 class="text-info">Voting Classifier (Ensemble)</h6>
+                    <p class="text-muted small">This is a meta-estimator that fits several base classifiers (LR, RF, SVM) and uses "soft voting" to predict the class label based on the argmax of the sums of the predicted probabilities. By combining them, we reduced variance and improved the F1-Score.</p>
+                </div>
+
+                <div class="table-responsive mt-4">
+                    <table class="table table-dark table-bordered align-middle text-center mb-0">
+                        <thead class="border-secondary">
+                            <tr>
+                                <th>Algorithm</th>
+                                <th>Approx. F1-Score</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="text-muted">
+                                <td>Individual Models (Avg)</td>
+                                <td>~0.74</td>
+                                <td>Discarded</td>
+                            </tr>
+                            <tr class="text-success fw-bold" style="background-color: rgba(25, 135, 84, 0.1);">
+                                <td>Voting Classifier (Ensemble)</td>
+                                <td>0.80</td>
+                                <td><span class="badge bg-success">Winner</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="metrics" class="mb-5">
+            <h2 class="display-6 fw-bold mb-4 text-accent">3. Evaluation Metrics</h2>
+            <div class="clinical-card p-4 mb-4">
+                <h4 class="mb-3">How was the model evaluated?</h4>
+                <ul class="text-muted small mb-4">
+                    <li><strong>Data Augmentation:</strong> To make the model robust against background noise, we augmented the training data by adding white noise, doubling the dataset size.</li>
+                    <li><strong>Stratified K-Fold:</strong> We ensured the split between training and testing maintained the same percentage of samples for each class (Normal, Mild, Moderate).</li>
+                    <li><strong>Focus on Recall (Alzheimer's class):</strong> In medical screening, a False Negative (missing a sick patient) is worse than a False Positive. The Ensemble model was chosen because it achieved the best balance of Precision and Recall (highest F1-Score).</li>
+                </ul>
+                <div class="text-center mt-4">
+                    <h5 class="mb-4">Confusion Matrix (Ensemble)</h5>
+                    <img src="{{ url_for('static', filename='images/audio_confusion_matrix.png') }}" alt="Audio Confusion Matrix" class="img-fluid border border-secondary p-2" style="max-height: 400px;">
+                </div>
+            </div>
+        </section>
+
+        <!-- TEST MODEL (Sin cambios) -->
+        <section id="test-model" class="mb-5">
+            <h2 class="display-6 fw-bold mb-4 text-warning">4. Test Audio Model</h2>
+            <div class="clinical-card p-4 border-warning">
+                <p class="text-muted mb-4">Upload a voice sample to see the raw Audio prediction. (No database saving).</p>
+                <form id="testAudioForm">
+                    <div class="mb-3">
+                        <label for="testAudioFile" class="form-label">Select Voice Sample (WAV, MP3)</label>
+                        <input class="form-control bg-dark text-white border-secondary" type="file" id="testAudioFile" accept=".wav,.mp3,.flac,.ogg" required>
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100 py-2" id="testAudioBtn">Analyze Audio</button>
+                </form>
+                <div id="audioResult" class="mt-4 d-none p-3 border border-secondary bg-dark">
+                    <h5 class="text-accent mb-3">Probabilities:</h5>
+                    <div class="d-flex justify-content-between text-muted"><span>Normal:</span> <span id="resAudioNormal"></span></div>
+                    <div class="d-flex justify-content-between text-muted"><span>Mild:</span> <span id="resAudioMild"></span></div>
+                    <div class="d-flex justify-content-between text-muted"><span>Moderate:</span> <span id="resAudioModerate"></span></div>
+                </div>
+            </div>
+        </section>
+    </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('testAudioForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('testAudioBtn');
+    const file = document.getElementById('testAudioFile').files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+    btn.disabled = true; btn.textContent = "Analyzing (May take a few seconds)...";
+    try {
+        const res = await fetch('/predict_audio', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Error");
+        document.getElementById('audioResult').classList.remove('d-none');
+        document.getElementById('resAudioNormal').textContent = (data.probabilities[0] * 100).toFixed(2) + "%";
+        document.getElementById('resAudioMild').textContent = (data.probabilities[1] * 100).toFixed(2) + "%";
+        document.getElementById('resAudioModerate').textContent = (data.probabilities[2] * 100).toFixed(2) + "%";
+    } catch (err) { alert(err.message); } finally { btn.disabled = false; btn.textContent = "Analyze Audio"; }
+});
+</script>
 {% endblock %}

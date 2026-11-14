@@ -5,7 +5,7 @@
     <div class="col-lg-9">
         <span class="section-number">METHODOLOGY</span>
         <h1 class="display-4 mb-4">CRISP-ML Framework</h1>
-        <p class="lead">Our development followed the Cross-Industry Standard Process for Machine Learning (CRISP-ML), ensuring a structured, reproducible, and quality-assured pipeline.</p>
+        <p class="lead text-muted">Our development followed the Cross-Industry Standard Process for Machine Learning (CRISP-ML), ensuring a structured, reproducible, and quality-assured pipeline.</p>
     </div>
 </div>
 
@@ -13,45 +13,45 @@
 
 <div class="row g-4">
     <div class="col-md-6">
-        <div class="clinical-card h-100">
-            <span class="section-number">01 — BUSINESS UNDERSTANDING</span>
-            <h4>The Goal</h4>
-            <p class="text-muted">Translate clinical needs into a Machine Learning problem. We identified the need for a non-invasive, multimodal screening tool to reduce false negatives in early Alzheimer's detection.</p>
+        <div class="clinical-card p-4 h-100">
+            <div class="section-number mb-2">01 — BUSINESS UNDERSTANDING</div>
+            <h4 class="mb-3">The Goal</h4>
+            <p class="text-muted mb-0">Translate clinical needs into a Machine Learning problem. We identified the need for a non-invasive, multimodal screening tool to reduce false negatives in early Alzheimer's detection.</p>
         </div>
     </div>
     <div class="col-md-6">
-        <div class="clinical-card h-100">
-            <span class="section-number">02 — DATA UNDERSTANDING</span>
-            <h4>The Data</h4>
-            <p class="text-muted">We utilized public datasets: Mendeley for 6,400 MRI images (Normal, Mild, Moderate, Very Mild) and ADCeleb for speech data (extracted from YouTube).</p>
+        <div class="clinical-card p-4 h-100">
+            <div class="section-number mb-2">02 — DATA UNDERSTANDING</div>
+            <h4 class="mb-3">The Data</h4>
+            <p class="text-muted mb-0">We utilized public datasets: Mendeley for 6,400 MRI images (Normal, Mild, Moderate, Very Mild) and ADCeleb for speech data (extracted from YouTube).</p>
         </div>
     </div>
     <div class="col-md-6">
-        <div class="clinical-card h-100">
-            <span class="section-number">03 — DATA PREPARATION</span>
-            <h4>Feature Engineering</h4>
-            <p class="text-muted">For audio, we extracted MFCCs, pitch, energy, ZCR, and Spectral Centroid. We applied Data Augmentation (adding white noise) to double the audio dataset and improve model robustness.</p>
+        <div class="clinical-card p-4 h-100">
+            <div class="section-number mb-2">03 — DATA PREPARATION</div>
+            <h4 class="mb-3">Feature Engineering</h4>
+            <p class="text-muted mb-0">For audio, we extracted MFCCs, pitch, energy, ZCR, and Spectral Centroid. We applied Data Augmentation (adding white noise) to double the audio dataset and improve model robustness.</p>
         </div>
     </div>
     <div class="col-md-6">
-        <div class="clinical-card h-100">
-            <span class="section-number">04 — MODELING</span>
-            <h4>Benchmarking</h4>
-            <p class="text-muted">We trained Random Forest, SVM, and Logistic Regression. For audio, we implemented a Voting Classifier (Ensemble) which achieved the best F1-Score. For MRI, Random Forest was selected.</p>
+        <div class="clinical-card p-4 h-100">
+            <div class="section-number mb-2">04 — MODELING</div>
+            <h4 class="mb-3">Benchmarking</h4>
+            <p class="text-muted mb-0">We trained Random Forest, SVM, and Logistic Regression. For audio, we implemented a Voting Classifier (Ensemble) which achieved the best F1-Score. For MRI, SVM was selected.</p>
         </div>
     </div>
     <div class="col-md-6">
-        <div class="clinical-card h-100">
-            <span class="section-number">05 — EVALUATION</span>
-            <h4>Metrics</h4>
-            <p class="text-muted">In clinical screening, minimizing false negatives is critical. Therefore, model selection was based on the F1-Score and Recall of the Alzheimer's class, using Stratified K-Fold Cross-Validation.</p>
+        <div class="clinical-card p-4 h-100">
+            <div class="section-number mb-2">05 — EVALUATION</div>
+            <h4 class="mb-3">Metrics</h4>
+            <p class="text-muted mb-0">In clinical screening, minimizing false negatives is critical. Therefore, model selection was based on the F1-Score and Recall of the Alzheimer's class, using Stratified K-Fold Cross-Validation.</p>
         </div>
     </div>
     <div class="col-md-6">
-        <div class="clinical-card h-100">
-            <span class="section-number">06 — DEPLOYMENT</span>
-            <h4>Architecture</h4>
-            <p class="text-muted">A Flask REST API integrates the models, while Supabase (PostgreSQL) manages the clinical history. The system is deployed on Render.</p>
+        <div class="clinical-card p-4 h-100">
+            <div class="section-number mb-2">06 — DEPLOYMENT</div>
+            <h4 class="mb-3">Architecture</h4>
+            <p class="text-muted mb-0">A Flask REST API integrates the models, while Supabase (PostgreSQL) manages the clinical history. The system is deployed on Render.</p>
         </div>
     </div>
 </div>
