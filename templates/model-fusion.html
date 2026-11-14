@@ -84,7 +84,8 @@
                 </ul>
                 <div class="text-center mt-4">
                     <h5 class="mb-4">Confusion Matrix (Meta-Classifier)</h5>
-                    <img src="{{ url_for('static', filename='images/fusion_confusion_matrix.png') }}" onerror="this.src='{{ url_for('static', filename='images/audio_confusion_matrix.png') }}'" alt="Fusion Confusion Matrix" class="img-fluid border border-secondary p-2" style="max-height: 400px;">
+                    <!-- Imagen limpia sin el onerror que causaba errores en VS Code -->
+                    <img src="{{ url_for('static', filename='images/fusion_confusion_matrix.png') }}" alt="Fusion Confusion Matrix" class="img-fluid border border-secondary p-2" style="max-height: 400px;">
                 </div>
             </div>
         </section>
