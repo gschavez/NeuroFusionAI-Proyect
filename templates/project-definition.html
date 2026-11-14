@@ -1,90 +1,84 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- Header -->
 <div class="row mb-5">
-    <div class="col-lg-9">
+    <div class="col-12 text-center">
         <span class="section-number">PROJECT DEFINITION</span>
-        <h1 class="display-3 mb-4" style="line-height: 1.1;">The Silent Gap in Early Detection.</h1>
-        <p class="lead mb-4" style="max-width: 700px;">
-            Alzheimer's disease affects over 55 million people globally. Despite its prevalence, traditional screening methods remain invasive, expensive, or insufficient to capture subtle early-stage cognitive decline.
+        <h1 class="display-5 fw-bold mb-3">CRISP-ML Methodology</h1>
+        <p class="text-muted fs-5 mx-auto" style="max-width: 800px;">
+            Our project follows the CRISP-ML standard to ensure a robust, scalable, and clinically relevant machine learning lifecycle.
         </p>
     </div>
 </div>
 
-<hr class="my-5">
-
-<!-- Problem & Solution -->
-<div class="row mb-5 g-5">
+<!-- Grid with proper spacing (g-4 adds gaps) -->
+<div class="row g-4 mb-5">
+    
+    <!-- 01 -->
     <div class="col-md-6">
-        <span class="section-number">01 — THE PROBLEM</span>
-        <h3 class="mb-3">Unimodal Limitations</h3>
-        <p class="text-muted text-justify">
-            Conventional diagnostic approaches rely heavily on isolated data sources. Magnetic Resonance Imaging (MRI) provides structural insights but can miss functional decline. Conversely, neuropsychological tests and speech analysis capture functional state but lack structural context. This lack of integration leads to high omission rates in initial evaluations.
-        </p>
-    </div>
-    <div class="col-md-6">
-        <span class="section-number">02 — THE SOLUTION</span>
-        <h3 class="mb-3">Multimodal Late Fusion</h3>
-        <p class="text-muted text-justify">
-            NeuroFusion AI integrates structural brain data (MRI) with functional speech biomarkers (Audio) using a Late Fusion meta-classifier. By processing each modality independently and combining their probabilities, the system mirrors clinical diagnostic reasoning, providing a more robust and holistic screening tool.
-        </p>
-    </div>
-</div>
-
-<hr class="my-5">
-
-<!-- Objectives -->
-<div class="row mb-5">
-    <div class="col-md-4">
-        <span class="section-number">03 — OBJECTIVES</span>
-        <h2>What We Set Out to Achieve</h2>
-    </div>
-    <div class="col-md-8">
-        <div class="clinical-card mb-3">
-            <h5>General Objective</h5>
-            <p class="mb-0 text-muted">Develop a multimodal cognitive screening support system based on Machine Learning, combining MRI and voice analysis to reduce the omission rate in initial Alzheimer's evaluations.</p>
+        <div class="clinical-card p-4 h-100">
+            <span class="text-accent fw-bold small mb-2 d-block">01 — BUSINESS UNDERSTANDING</span>
+            <h3 class="mb-3">The Goal</h3>
+            <p class="text-muted">
+                Translate clinical needs into a Machine Learning problem. We identified the need for a non-invasive, multimodal screening tool to reduce false negatives in early Alzheimer's detection.
+            </p>
         </div>
-        
-        <h5 class="mt-4 mb-3">Specific Objectives</h5>
-        <ul class="list-group list-group-flush border-top border-bottom" style="border-color: var(--border-color) !important;">
-            <li class="list-group-item bg-transparent text-muted border-0 py-3">
-                <strong class="text-dark">1. Audio Model:</strong> Train a classifier capable of detecting Alzheimer's vocal patterns (MFCCs, pauses) achieving an F1-Score > 0.80.
-            </li>
-            <li class="list-group-item bg-transparent text-muted border-0 py-3">
-                <strong class="text-dark">2. MRI Model:</strong> Develop a structural classifier to identify cognitive stages (Normal, Mild, Moderate).
-            </li>
-            <li class="list-group-item bg-transparent text-muted border-0 py-3">
-                <strong class="text-dark">3. Late Fusion:</strong> Implement a meta-classifier that optimally weights the probabilities of both modalities.
-            </li>
-            <li class="list-group-item bg-transparent text-muted border-0 py-3">
-                <strong class="text-dark">4. Deployment:</strong> Expose the system via a REST API with a relational database (Supabase) and a web interface.
-            </li>
-        </ul>
     </div>
-</div>
 
-<hr class="my-5">
+    <!-- 02 -->
+    <div class="col-md-6">
+        <div class="clinical-card p-4 h-100">
+            <span class="text-accent fw-bold small mb-2 d-block">02 — DATA UNDERSTANDING</span>
+            <h3 class="mb-3">The Data</h3>
+            <p class="text-muted">
+                We utilized public datasets: Mendeley for 6,400 MRI images (Normal, Mild, Moderate, Very Mild) and ADCeLeb for speech data (extracted from YouTube).
+            </p>
+        </div>
+    </div>
 
-<!-- Scope & Limitations -->
-<div class="row g-5">
+    <!-- 03 -->
     <div class="col-md-6">
-        <span class="section-number">04 — SCOPE</span>
-        <h4 class="mb-3">What This System Is</h4>
-        <ul class="list-unstyled text-muted">
-            <li class="mb-2">✓ An academic prototype for clinical screening support.</li>
-            <li class="mb-2">✓ A pipeline built with open-source Machine Learning tools (Scikit-Learn).</li>
-            <li class="mb-2">✓ A user-friendly web application for medical professionals.</li>
-        </ul>
+        <div class="clinical-card p-4 h-100">
+            <span class="text-accent fw-bold small mb-2 d-block">03 — DATA PREPARATION</span>
+            <h3 class="mb-3">Feature Engineering</h3>
+            <p class="text-muted">
+                For audio, we extracted MFCCs, pitch, energy, ZCR, and Spectral Centroid. We applied Data Augmentation (adding white noise) to double the audio dataset and improve model robustness. For MRI, we used HOG.
+            </p>
+        </div>
     </div>
+
+    <!-- 04 -->
     <div class="col-md-6">
-        <span class="section-number">05 — LIMITATIONS</span>
-        <h4 class="mb-3">What This System Isn't</h4>
-        <ul class="list-unstyled text-muted">
-            <li class="mb-2">✗ A replacement for professional medical diagnosis.</li>
-            <li class="mb-2">✗ A model trained on massive clinical cohorts (limited to public datasets like ADCeleb and Mendeley).</li>
-            <li class="mb-2">✗ A system free of noise (YouTube audio contains background noise).</li>
-        </ul>
+        <div class="clinical-card p-4 h-100">
+            <span class="text-accent fw-bold small mb-2 d-block">04 — MODELING</span>
+            <h3 class="mb-3">Benchmarking</h3>
+            <p class="text-muted">
+                We trained Random Forest, SVM, and Logistic Regression. For audio, we implemented a Voting Classifier (Ensemble) which achieved the best F1-Score. For MRI, SVM was selected.
+            </p>
+        </div>
     </div>
+
+    <!-- 05 -->
+    <div class="col-md-6">
+        <div class="clinical-card p-4 h-100">
+            <span class="text-accent fw-bold small mb-2 d-block">05 — EVALUATION</span>
+            <h3 class="mb-3">Metrics</h3>
+            <p class="text-muted">
+                In clinical screening, minimizing false negatives is critical. Therefore, model selection was based on the F1-Score and Recall of the Alzheimer's class, using Stratified K-Fold Cross-Validation.
+            </p>
+        </div>
+    </div>
+
+    <!-- 06 -->
+    <div class="col-md-6">
+        <div class="clinical-card p-4 h-100">
+            <span class="text-accent fw-bold small mb-2 d-block">06 — DEPLOYMENT</span>
+            <h3 class="mb-3">Architecture</h3>
+            <p class="text-muted">
+                A Flask REST API integrates the models, while Supabase (PostgreSQL) manages the clinical history. The system is deployed on Render.
+            </p>
+        </div>
+    </div>
+
 </div>
 {% endblock %}

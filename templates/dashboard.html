@@ -12,12 +12,34 @@
 <hr class="mb-4">
 
 <form id="predictionForm" enctype="multipart/form-data">
+    
+    <!-- PATIENT SELECTOR WITH SEARCH -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="clinical-card p-4">
+                <label for="patientSelect" class="form-label text-accent fw-bold mb-3">Select Patient for Evaluation</label>
+                
+                <input type="text" id="patientSearchInput" class="form-control bg-dark text-white border-info rounded-0 mb-3" placeholder="🔍 Type to search patient by name...">
+                
+                <select id="patientSelect" class="form-select bg-dark text-white border-secondary rounded-0">
+                    <option value="" disabled selected>-- Select a registered patient --</option>
+                    {% for p in patients %}
+                        <option value="{{ p.id }}">{{ p.full_name }} (Age: {{ p.age }})</option>
+                    {% endfor %}
+                </select>
+                <div class="mt-3 text-small text-muted">
+                    Patient not on the list? <a href="/patients" class="text-accent">Register a new patient here</a>.
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row g-4 mb-4">
         <!-- MRI Column -->
         <div class="col-md-6">
-            <div class="clinical-card h-100">
+            <div class="clinical-card p-4 h-100">
                 <h4 class="mb-3">1. Magnetic Resonance Imaging (MRI)</h4>
-                <p class="small text-muted mb-3">Allowed formats: JPG, PNG.</p>
+                <p class="small text-muted mb-4">Allowed formats: JPG, PNG.</p>
                 <div class="mb-3">
                     <label for="mriFile" class="form-label">Select image</label>
                     <input class="form-control" type="file" id="mriFile" name="mri_file" accept=".jpg,.jpeg,.png" required>
@@ -27,9 +49,9 @@
 
         <!-- Audio Column -->
         <div class="col-md-6">
-            <div class="clinical-card h-100">
+            <div class="clinical-card p-4 h-100">
                 <h4 class="mb-3">2. Voice Sample</h4>
-                <p class="small text-muted mb-3">Allowed formats: WAV, MP3.</p>
+                <p class="small text-muted mb-4">Allowed formats: WAV, MP3.</p>
                 <div class="mb-3">
                     <label for="audioFile" class="form-label">Select audio</label>
                     <input class="form-control" type="file" id="audioFile" name="audio_file" accept=".wav,.mp3" required>
@@ -47,65 +69,71 @@
     </div>
 </form>
 
-<!-- Results Section (Hidden by default) -->
+<!-- RESULTS SECTION -->
 <div id="resultsSection" class="d-none">
     <hr class="mb-5">
     <div class="row mb-4">
-        <div class="col-12">
+        <div class="col-12 text-center">
             <span class="section-number">02 — FUSION RESULTS</span>
-            <h2 id="finalDiagnosis" class="display-4 text-accent mb-0">Normal</h2>
-            <p class="mono-number text-muted" id="finalConfidence">Global confidence: 0.00%</p>
+            <h2 id="finalDiagnosis" class="display-3 text-accent mb-2">Normal</h2>
+            <p class="mono-number text-muted fs-5" id="finalConfidence">Global confidence: 0.00%</p>
         </div>
     </div>
 
     <div class="row g-4">
         <!-- MRI Probabilities -->
         <div class="col-md-6">
-            <h5 class="mb-3 border-bottom pb-2">MRI Prediction</h5>
-            <div class="mb-2 d-flex justify-content-between mono-number">
-                <span>Normal</span> <span id="mriNormalVal">0.0%</span>
-            </div>
-            <div class="progress rounded-0 mb-3" style="height: 8px;">
-                <div id="mriNormalBar" class="progress-bar bg-success" style="width: 0%"></div>
-            </div>
-            
-            <div class="mb-2 d-flex justify-content-between mono-number">
-                <span>Mild</span> <span id="mriMildVal">0.0%</span>
-            </div>
-            <div class="progress rounded-0 mb-3" style="height: 8px;">
-                <div id="mriMildBar" class="progress-bar bg-warning" style="width: 0%"></div>
-            </div>
+            <div class="clinical-card p-4 h-100">
+                <h5 class="mb-4 border-bottom border-secondary pb-3">MRI Prediction</h5>
+                
+                <div class="mb-2 d-flex justify-content-between mono-number">
+                    <span>Normal</span> <span id="mriNormalVal">0.0%</span>
+                </div>
+                <div class="progress rounded-0 mb-4" style="height: 8px;">
+                    <div id="mriNormalBar" class="progress-bar bg-success" style="width: 0%"></div>
+                </div>
+                
+                <div class="mb-2 d-flex justify-content-between mono-number">
+                    <span>Mild</span> <span id="mriMildVal">0.0%</span>
+                </div>
+                <div class="progress rounded-0 mb-4" style="height: 8px;">
+                    <div id="mriMildBar" class="progress-bar bg-warning" style="width: 0%"></div>
+                </div>
 
-            <div class="mb-2 d-flex justify-content-between mono-number">
-                <span>Moderate</span> <span id="mriModerateVal">0.0%</span>
-            </div>
-            <div class="progress rounded-0 mb-3" style="height: 8px;">
-                <div id="mriModerateBar" class="progress-bar bg-danger" style="width: 0%"></div>
+                <div class="mb-2 d-flex justify-content-between mono-number">
+                    <span>Moderate</span> <span id="mriModerateVal">0.0%</span>
+                </div>
+                <div class="progress rounded-0 mb-2" style="height: 8px;">
+                    <div id="mriModerateBar" class="progress-bar bg-danger" style="width: 0%"></div>
+                </div>
             </div>
         </div>
 
         <!-- Audio Probabilities -->
         <div class="col-md-6">
-            <h5 class="mb-3 border-bottom pb-2">Audio Prediction</h5>
-            <div class="mb-2 d-flex justify-content-between mono-number">
-                <span>Normal</span> <span id="audioNormalVal">0.0%</span>
-            </div>
-            <div class="progress rounded-0 mb-3" style="height: 8px;">
-                <div id="audioNormalBar" class="progress-bar bg-success" style="width: 0%"></div>
-            </div>
-            
-            <div class="mb-2 d-flex justify-content-between mono-number">
-                <span>Mild</span> <span id="audioMildVal">0.0%</span>
-            </div>
-            <div class="progress rounded-0 mb-3" style="height: 8px;">
-                <div id="audioMildBar" class="progress-bar bg-warning" style="width: 0%"></div>
-            </div>
+            <div class="clinical-card p-4 h-100">
+                <h5 class="mb-4 border-bottom border-secondary pb-3">Audio Prediction</h5>
+                
+                <div class="mb-2 d-flex justify-content-between mono-number">
+                    <span>Normal</span> <span id="audioNormalVal">0.0%</span>
+                </div>
+                <div class="progress rounded-0 mb-4" style="height: 8px;">
+                    <div id="audioNormalBar" class="progress-bar bg-success" style="width: 0%"></div>
+                </div>
+                
+                <div class="mb-2 d-flex justify-content-between mono-number">
+                    <span>Mild</span> <span id="audioMildVal">0.0%</span>
+                </div>
+                <div class="progress rounded-0 mb-4" style="height: 8px;">
+                    <div id="audioMildBar" class="progress-bar bg-warning" style="width: 0%"></div>
+                </div>
 
-            <div class="mb-2 d-flex justify-content-between mono-number">
-                <span>Moderate</span> <span id="audioModerateVal">0.0%</span>
-            </div>
-            <div class="progress rounded-0 mb-3" style="height: 8px;">
-                <div id="audioModerateBar" class="progress-bar bg-danger" style="width: 0%"></div>
+                <div class="mb-2 d-flex justify-content-between mono-number">
+                    <span>Moderate</span> <span id="audioModerateVal">0.0%</span>
+                </div>
+                <div class="progress rounded-0 mb-2" style="height: 8px;">
+                    <div id="audioModerateBar" class="progress-bar bg-danger" style="width: 0%"></div>
+                </div>
             </div>
         </div>
     </div>

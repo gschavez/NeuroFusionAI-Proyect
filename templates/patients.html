@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <span class="section-number">PATIENT MANAGEMENT</span>
+        <h2 class="mb-3">Register New Patient</h2>
+        <p class="text-muted">Add a new patient to the system to start tracking their cognitive evaluations.</p>
+    </div>
+</div>
+
+<hr class="mb-4">
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show rounded-0" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="row g-4">
+    <!-- Add Patient Form -->
+    <div class="col-md-4">
+        <div class="clinical-card p-4 h-100">
+            <h4 class="mb-4 text-accent">New Patient</h4>
+            <form action="/add_patient" method="POST">
+                <div class="mb-3">
+                    <label for="full_name" class="form-label">Full Name</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary rounded-0" id="full_name" name="full_name" required>
+                </div>
+                <div class="mb-3">
+                    <label for="age" class="form-label">Age</label>
+                    <input type="number" class="form-control bg-dark text-white border-secondary rounded-0" id="age" name="age" required>
+                </div>
+                <div class="mb-4">
+                    <label for="gender" class="form-label">Gender</label>
+                    <select class="form-select bg-dark text-white border-secondary rounded-0" id="gender" name="gender">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-custom w-100 py-2">Save Patient</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Patients List -->
+    <div class="col-md-8">
+        <div class="clinical-card p-4 h-100">
+            <h4 class="mb-4">Registered Patients</h4>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Full Name</th>
+                            <th>Age</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for patient in patients %}
+                        <tr>
+                            <td class="text-muted small">#{{ patient.id }}</td>
+                            <td class="text-accent fw-bold">
+                                <a href="/history?patient_id={{ patient.id }}" class="text-accent text-decoration-none" title="View History">
+                                    {{ patient.full_name }}
+                                </a>
+                            </td>
+                            <td>{{ patient.age }}</td>
+                            <td>
+                                <a href="/edit_patient/{{ patient.id }}" class="btn btn-sm btn-outline-info rounded-0">Edit</a>
+                                <form action="/delete_patient/{{ patient.id }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this patient and all their records?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-0">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">No patients registered yet. Add one using the form.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

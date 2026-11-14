@@ -1,60 +1,104 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row mb-5">
-    <div class="col-lg-9">
-        <span class="section-number">MODULE 03</span>
-        <h1 class="display-4 mb-4">Late Fusion (Ensemble)</h1>
-        <p class="lead">Combining structural and functional biomarkers via meta-classification.</p>
-    </div>
-</div>
-
-<hr class="my-5">
-
-<div class="row g-5">
-    <div class="col-md-6">
-        <h3>The Fusion Strategy</h3>
-        <p class="text-muted">Because the MRI and Audio datasets come from different patients, we could not perform a direct 1-to-1 merge. Instead, we implemented <strong>Synthetic Late Fusion</strong>.</p>
-        <p class="text-muted">We randomly sampled 3,000 combinations of MRI probabilities and Audio probabilities. The final ground truth label was determined by a Clinical Severity Rule: <code>y_true = max(mri_label, audio_label)</code>.</p>
-        
-        <h3 class="mt-4">Input Features</h3>
-        <p class="text-muted">The meta-classifier receives a 6-dimensional vector:</p>
-        <ul class="text-muted mono-number" style="font-size: 0.85rem;">
-            <li>prob_normal_mri, prob_mild_mri, prob_moderate_mri</li>
-            <li>prob_normal_audio, prob_mild_audio, prob_moderate_audio</li>
-        </ul>
-    </div>
-    <div class="col-md-6">
-        <h3>Benchmarking</h3>
-        <p class="text-muted">We trained three meta-classifiers on the synthetic dataset:</p>
-        
-        <table class="table table-sm table-borderless mono-number mt-3" style="font-size: 0.9rem;">
-            <thead>
-                <tr class="border-bottom" style="border-color: var(--border-color) !important;">
-                    <th>Meta-Classifier</th>
-                    <th>F1-Score</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>SVM</td>
-                    <td>0.7400</td>
-                </tr>
-                <tr>
-                    <td>Random Forest</td>
-                    <td>0.7800</td>
-                </tr>
-                <tr class="border-top" style="border-color: var(--accent) !important;">
-                    <td><strong>Logistic Regression (Winner)</strong></td>
-                    <td><strong style="color: var(--accent);">0.8000</strong></td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="clinical-card mt-4">
-            <h5>Why Logistic Regression?</h5>
-            <p class="text-muted small mb-0">Logistic Regression is inherently probabilistic. It acts as a perfect mathematical arbitrator, learning exactly how much weight to give to the MRI versus the Audio prediction when making the final decision.</p>
+<div class="row">
+    <div class="col-md-3 mb-4">
+        <div class="clinical-card p-4 sticky-top" style="top: 20px;">
+            <h5 class="text-accent mb-4">Fusion Model</h5>
+            <nav class="nav flex-column nav-pills">
+                <a class="nav-link text-white mb-2" href="#concepts">1. Concepts</a>
+                <a class="nav-link text-white mb-2" href="#training">2. Training</a>
+                <a class="nav-link text-white mb-2" href="#metrics">3. Metrics</a>
+                <a class="nav-link text-accent fw-bold mt-3" href="/dashboard">▶ Test Full Fusion</a>
+            </nav>
         </div>
+    </div>
+
+    <div class="col-md-9">
+        <section id="concepts" class="mb-5">
+            <h2 class="display-6 fw-bold mb-4 text-accent">1. Concepts</h2>
+            <div class="clinical-card p-4 mb-4">
+                <h4 class="mb-3">Late Fusion</h4>
+                <p class="text-muted mb-0">
+                    A multimodal technique where different models process different types of data independently, and their final predictions (probabilities) are combined at the end by a Meta-Classifier.
+                </p>
+            </div>
+        </section>
+
+        <section id="training" class="mb-5">
+            <h2 class="display-6 fw-bold mb-4 text-accent">2. Training & Benchmarking</h2>
+            <div class="clinical-card p-4 mb-4">
+                <p class="text-muted mb-4">
+                    The Meta-Classifier takes the 6 output probabilities (3 from MRI, 3 from Audio) as input features. We tested different algorithms to find the best "decision maker":
+                </p>
+                
+                <div class="mb-4">
+                    <h6 class="text-info">Logistic Regression</h6>
+                    <p class="text-muted small mb-3">Used as a linear baseline to see if the probabilities could be separated by a simple hyperplane.</p>
+                    
+                    <h6 class="text-info">Random Forest</h6>
+                    <p class="text-muted small mb-3">An ensemble of decision trees. It proved to be the best at capturing complex, non-linear relationships between the MRI and Audio probabilities (e.g., "If MRI is highly confident but Audio is not, trust MRI").</p>
+                    
+                    <h6 class="text-info">K-Nearest Neighbors (KNN)</h6>
+                    <p class="text-muted small">A distance-based algorithm. It performed poorly because the 6-dimensional probability space is complex and sparse, making distance metrics unreliable.</p>
+                </div>
+
+                <div class="table-responsive mt-4">
+                    <table class="table table-dark table-bordered align-middle text-center mb-0">
+                        <thead class="border-secondary">
+                            <tr>
+                                <th>Meta-Algorithm</th>
+                                <th>Global Accuracy</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="text-muted">
+                                <td>Logistic Regression</td>
+                                <td>~85.0%</td>
+                                <td>Discarded</td>
+                            </tr>
+                            <tr class="text-success fw-bold" style="background-color: rgba(25, 135, 84, 0.1);">
+                                <td>Random Forest (Meta)</td>
+                                <td>~90.0%</td>
+                                <td><span class="badge bg-success">Winner</span></td>
+                            </tr>
+                            <tr class="text-muted">
+                                <td>K-Nearest Neighbors</td>
+                                <td>~78.0%</td>
+                                <td>Discarded</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="metrics" class="mb-5">
+            <h2 class="display-6 fw-bold mb-4 text-accent">3. Evaluation Metrics</h2>
+            <div class="clinical-card p-4 mb-4">
+                <h4 class="mb-3">How was the model evaluated?</h4>
+                <ul class="text-muted small mb-4">
+                    <li><strong>Global Accuracy:</strong> Because the Fusion model outputs a single final diagnosis, the primary metric evaluated was the Global Accuracy (the percentage of total correct predictions across all classes).</li>
+                    <li><strong>Cross-Modality Confusion:</strong> We analyzed cases where the MRI and Audio predictions conflicted (e.g., MRI says Mild, Audio says Normal). The Meta-Classifier was evaluated on its ability to correctly arbitrate these conflicts based on learned weights.</li>
+                </ul>
+                <div class="text-center mt-4">
+                    <h5 class="mb-4">Confusion Matrix (Meta-Classifier)</h5>
+                    <img src="{{ url_for('static', filename='images/fusion_confusion_matrix.png') }}" onerror="this.src='{{ url_for('static', filename='images/audio_confusion_matrix.png') }}'" alt="Fusion Confusion Matrix" class="img-fluid border border-secondary p-2" style="max-height: 400px;">
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-5 mt-5">
+            <div class="clinical-card p-5 text-center border-info" style="box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);">
+                <h3 class="mb-3 text-accent">Ready to test the full pipeline?</h3>
+                <p class="text-muted mb-4 fs-5">
+                    The Fusion model requires clinical context. Go to the Dashboard to select a patient, upload both modalities (MRI + Audio), and execute the Late Fusion.
+                </p>
+                <a href="/dashboard" class="btn btn-custom px-5 py-3 rounded-0 text-dark fw-bold fs-5">Go to Dashboard</a>
+            </div>
+        </section>
+
     </div>
 </div>
 {% endblock %}

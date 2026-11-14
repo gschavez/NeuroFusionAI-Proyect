@@ -11,42 +11,86 @@
 
 <hr class="mb-4">
 
-<div class="table-responsive bg-white p-3 border" style="border-color: var(--border-color) !important;">
-    <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-            <tr>
-                <th>Date</th>
-                <th>MRI File</th>
-                <th>Audio File</th>
-                <th>MRI Prob.</th>
-                <th>Audio Prob.</th>
-                <th>Final Result</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for pred in predictions %}
-            <tr>
-                <td class="small text-muted">{{ pred.created_at[:10] }}</td>
-                <td class="small">{{ pred.mri_image_path }}</td>
-                <td class="small">{{ pred.audio_path }}</td>
-                <td class="mono-number">{{ "%.2f"|format(pred.mri_probability * 100) }}%</td>
-                <td class="mono-number">{{ "%.2f"|format(pred.audio_probability * 100) }}%</td>
-                <td>
-                    {% if pred.final_result == 'Normal' %}
-                        <span class="badge bg-success rounded-0">Normal</span>
-                    {% elif pred.final_result == 'Mild' %}
-                        <span class="badge bg-warning text-dark rounded-0">Mild</span>
-                    {% else %}
-                        <span class="badge bg-danger rounded-0">Moderate</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="6" class="text-center py-4 text-muted">No evaluations recorded yet.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<!-- Search and Filters -->
+<div class="row mb-4 align-items-end">
+    <div class="col-md-4">
+        <form action="/history" method="GET" class="d-flex">
+            <input type="text" name="q" class="form-control bg-dark text-white border-secondary rounded-0 me-2" placeholder="Search patient name..." value="{{ search_query or '' }}">
+            <button type="submit" class="btn btn-custom rounded-0 px-4">Search</button>
+            {% if search_query %}
+                <a href="/history" class="btn btn-outline-secondary rounded-0 ms-2 px-3" title="Clear search">✖</a>
+            {% endif %}
+        </form>
+    </div>
+    
+    <div class="col-md-8 d-flex flex-wrap gap-2 justify-content-md-end mt-3 mt-md-0">
+        <span class="text-muted me-2 align-self-center">Filter:</span>
+        <a href="/history" class="btn btn-sm {% if not active_filter and not active_patient %}btn-custom{% else %}btn-outline-secondary{% endif %} rounded-0">All</a>
+        <a href="/history?result=Normal" class="btn btn-sm {% if active_filter == 'Normal' %}btn-success{% else %}btn-outline-success{% endif %} rounded-0">Normal</a>
+        <a href="/history?result=Mild" class="btn btn-sm {% if active_filter == 'Mild' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %} rounded-0">Mild</a>
+        <a href="/history?result=Moderate" class="btn btn-sm {% if active_filter == 'Moderate' %}btn-danger{% else %}btn-outline-danger{% endif %} rounded-0">Moderate</a>
+        
+        {% if active_patient %}
+            <span class="badge bg-info text-dark ms-2 align-self-center rounded-0 p-2">
+                Patient ID: #{{ active_patient }}
+                <a href="/history" class="text-dark ms-1 text-decoration-none">✖</a>
+            </span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Table -->
+<div class="clinical-card p-0 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle mb-0 border-secondary">
+            <thead>
+                <tr class="border-bottom border-secondary">
+                    <th class="py-3 px-4">Date</th>
+                    <th class="py-3 px-4">Patient</th>
+                    <th class="py-3 px-4">MRI File</th>
+                    <th class="py-3 px-4">Audio File</th>
+                    <th class="py-3 px-4">MRI Prob.</th>
+                    <th class="py-3 px-4">Audio Prob.</th>
+                    <th class="py-3 px-4 text-center">Final Result</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pred in predictions %}
+                <tr>
+                    <td class="px-4 text-muted small">{{ (pred.created_at | string)[:10] if pred.created_at else 'N/A' }}</td>
+                    <td class="px-4 fw-bold">
+                        {% if pred.patients %}
+                            <a href="/history?patient_id={{ pred.patient_id }}" class="text-accent text-decoration-none">
+                                {{ pred.patients.full_name }}
+                            </a>
+                        {% else %}
+                            <span class="text-muted fst-italic">Anonymous</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 small text-muted">{{ pred.mri_image_path }}</td>
+                    <td class="px-4 small text-muted">{{ pred.audio_path }}</td>
+                    <td class="px-4 mono-number">{{ "%.2f"|format(pred.mri_probability * 100) }}%</td>
+                    <td class="px-4 mono-number">{{ "%.2f"|format(pred.audio_probability * 100) }}%</td>
+                    <td class="px-4 text-center">
+                        {% if pred.final_result == 'Normal' %}
+                            <span class="badge bg-success rounded-0 px-3 py-2">Normal</span>
+                        {% elif pred.final_result == 'Mild' %}
+                            <span class="badge bg-warning text-dark rounded-0 px-3 py-2">Mild</span>
+                        {% else %}
+                            <span class="badge bg-danger rounded-0 px-3 py-2">Moderate</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center py-5 text-muted">
+                        <h5 class="mb-0">No records found.</h5>
+                        <p class="mb-0">Try changing the search or filters.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}
