@@ -2,6 +2,7 @@ import os
 import gc
 import re
 import tempfile
+import threading
 from functools import wraps
 from pathlib import Path
 from urllib.parse import urlparse
@@ -46,6 +47,12 @@ def save_prediction(record):
         print("Prediction saved to Supabase.")
     except Exception as db_error:
         print(f"Error saving prediction to Supabase: {db_error}")
+
+
+# One inference at a time: the MRI and audio requests arrive in parallel from the
+# dashboard, and loading the models from two threads at once can deadlock Python's
+# import system ("deadlock detected by _ModuleLock"). It also limits peak RAM.
+MODEL_LOCK = threading.Lock()
 
 
 def login_required(view):
@@ -133,6 +140,174 @@ def build_partial_comment(prediction, probabilities, mri_probs, audio_probs):
     }
 
 
+# ------------------------------------------------------------------
+# Screening report: explanation of the voice result + structured report
+# ------------------------------------------------------------------
+AUDIO_MARKERS = {
+    # feature: (label, what it measures)
+    "pause_ratio": ("Pauses and silences", "share of the recording spent in silence or hesitation"),
+    "pitch_mean": ("Average pitch", "how high or low the voice is"),
+    "rms_mean": ("Voice energy", "loudness / vocal effort"),
+    "zcr_mean": ("Zero-crossing rate", "noisiness / breathiness of the sound"),
+    "spectral_centroid": ("Spectral brightness", "balance between low and high frequencies"),
+    "duration": ("Recording length", "total duration of the speech sample (s)"),
+}
+_audio_expl = None
+
+
+def _load_audio_explainer():
+    """Coefficients of the Logistic Regression member of the audio ensemble and the
+    training mean/std of each feature. Used only to explain, not to predict."""
+    global _audio_expl
+    if _audio_expl is None:
+        scaler = joblib.load(BASE_DIR / "models" / "audio_scaler.pkl")
+        model = joblib.load(BASE_DIR / "models" / "audio_classifier.pkl")
+        lr = model.named_estimators_["lr"]
+        names = list(scaler.feature_names_in_)
+        _audio_expl = {
+            "names": names,
+            "mean": dict(zip(names, scaler.mean_)),
+            "scale": dict(zip(names, scaler.scale_)),
+            "coef": dict(zip(names, lr.coef_[0])),
+        }
+    return _audio_expl
+
+
+def explain_audio(features):
+    """Compare each marker with the training population (z-score) and estimate
+    whether it pushed the result towards impairment or towards healthy."""
+    e = _load_audio_explainer()
+    markers, out_of_range = [], []
+    mfcc_push = 0.0
+    for name in e["names"]:
+        if name not in features:
+            continue
+        z = (features[name] - e["mean"][name]) / e["scale"][name]
+        push = e["coef"][name] * z            # > 0 -> towards Alzheimer's, < 0 -> towards healthy
+        if abs(z) > 3:
+            out_of_range.append(name)
+        if name.startswith("mfcc_"):
+            mfcc_push += push
+            continue
+        label, meaning = AUDIO_MARKERS[name]
+        markers.append({
+            "feature": name, "label": label, "meaning": meaning,
+            "value": round(features[name], 4 if abs(features[name]) < 10 else 1),
+            "train_mean": round(e["mean"][name], 4 if abs(e["mean"][name]) < 10 else 1),
+            "z": round(z, 2),
+            "position": ("well above" if z > 1.5 else "above" if z > 0.5 else
+                         "well below" if z < -1.5 else "below" if z < -0.5 else "close to"),
+            "push": round(push, 3),
+            "direction": "impairment" if push > 0.1 else "healthy" if push < -0.1 else "neutral",
+        })
+    markers.sort(key=lambda m: -abs(m["push"]))
+    markers.append({
+        "feature": "mfcc", "label": "Vocal timbre (13 MFCCs)",
+        "meaning": "shape of the vocal tract / articulation, combined",
+        "value": None, "train_mean": None, "z": None, "position": None,
+        "push": round(mfcc_push, 3),
+        "direction": "impairment" if mfcc_push > 0.1 else "healthy" if mfcc_push < -0.1 else "neutral",
+    })
+    duration = features.get("duration", 0.0)
+    return {
+        "markers": markers,
+        "quality": {
+            "duration_s": round(duration, 1),
+            "short_recording": duration < 30,
+            "out_of_range": out_of_range,
+        },
+    }
+
+
+MRI_FINDINGS = {
+    "Normal": ("Pattern closest to non-demented brains in the training set: ventricles and cortical "
+               "sulci within the usual range for the dataset."),
+    "Mild": ("Pattern closest to very mild / mild dementia in the training set. In this dataset these "
+             "images usually show slightly enlarged ventricles and widened sulci compared with normal brains."),
+    "Moderate": ("Pattern closest to moderate dementia in the training set, where images typically show "
+                 "clearly enlarged ventricles and marked cortical atrophy."),
+}
+
+NEXT_STEPS = {
+    "Normal": [
+        "Routine cognitive re-screening in about 12 months, or earlier if new memory complaints appear.",
+        "Keep a record of this result to compare with future evaluations.",
+    ],
+    "Mild": [
+        "Complete cognitive testing by a professional (for example MoCA or MMSE and a neuropsychological battery).",
+        "Clinical review of reversible causes (for example vitamin B12, thyroid function, medication, mood).",
+        "Follow-up evaluation in 3 to 6 months to see whether the pattern changes.",
+    ],
+    "Moderate": [
+        "Prompt referral to neurology for a full clinical assessment.",
+        "Review of the MRI by a radiologist and complete cognitive testing.",
+        "Involve the family or caregiver in the follow-up plan.",
+    ],
+}
+
+
+def confidence_band(p):
+    if p >= 0.80:
+        return "High", "The fusion model is confident about this class."
+    if p >= 0.60:
+        return "Moderate", "The result is plausible but other classes are not excluded."
+    return "Low", "The model is not confident: the result should be treated as inconclusive."
+
+
+def build_report(prediction, probabilities, mri_probs, audio_probs, audio_quality=None):
+    """Structured screening report built only from what the models produce."""
+    ordered = sorted(probabilities.items(), key=lambda kv: -kv[1])
+    top_p = ordered[0][1]
+    second, second_p = ordered[1]
+    band, band_text = confidence_band(top_p)
+
+    mri_label = CLASSES[int(np.argmax(mri_probs))]
+    mri_conf = float(max(mri_probs))
+    p_ad = float(audio_probs[1]) + float(audio_probs[2])
+    audio_impaired = p_ad >= 0.5
+    agree = (mri_label != "Normal") == audio_impaired
+
+    reliability = []
+    if not agree:
+        reliability.append("MRI and voice disagree: one modality suggests impairment and the other does not.")
+    if band == "Low":
+        reliability.append("Low fusion confidence (below 60 %).")
+    if top_p - second_p < 0.15:
+        reliability.append(f"The second most likely class ({second}, {second_p:.0%}) is close to the first.")
+    q = audio_quality or {}
+    if q.get("short_recording"):
+        reliability.append(f"Short voice sample ({q.get('duration_s', 0):.0f} s); the voice model was trained on ~1–2 minute recordings.")
+    if q.get("out_of_range"):
+        reliability.append("Some acoustic values are far outside the training range ("
+                           + ", ".join(q["out_of_range"][:4]) + "), possibly due to noise or the microphone.")
+    if not reliability:
+        reliability.append("No reliability warnings: both modalities point in the same direction.")
+
+    return {
+        "level": prediction,
+        "probabilities": probabilities,
+        "confidence": round(top_p, 4),
+        "confidence_band": band,
+        "confidence_text": band_text,
+        "second_class": second,
+        "second_probability": round(second_p, 4),
+        "mri": {"label": mri_label, "confidence": round(mri_conf, 4), "finding": MRI_FINDINGS[mri_label]},
+        "voice": {
+            "p_alzheimer": round(p_ad, 4),
+            "label": "Alzheimer-like speech markers" if audio_impaired else "No Alzheimer-like speech markers",
+        },
+        "modalities_agree": agree,
+        "reliability": reliability,
+        "next_steps": NEXT_STEPS[prediction],
+        "limitations": [
+            "MRI and voice models were trained on different public datasets (Mendeley MRI, ADCeleb speech) and paired synthetically.",
+            "The voice model is binary (healthy vs. Alzheimer's); its Mild/Moderate split is a fixed 70/30 rule.",
+            "The training data is imbalanced (very few Moderate cases), so Moderate predictions are the least reliable.",
+            "The voice explanation comes from the logistic-regression member of the ensemble and is indicative only.",
+        ],
+    }
+
+
 # ==========================================
 # API ROUTES
 # ==========================================
@@ -175,6 +350,18 @@ def predict_fusion():
             "notice": "Educational prototype. Not a medical diagnosis."
         }
         result["comment"] = build_partial_comment(prediction_name, result["probabilities"], mri, audio)
+        audio_quality = None
+        raw_q = data.get("audio_quality")
+        if isinstance(raw_q, dict):  # sent back by the browser: sanitize before use
+            try:
+                audio_quality = {
+                    "duration_s": float(raw_q.get("duration_s") or 0),
+                    "short_recording": bool(raw_q.get("short_recording")),
+                    "out_of_range": [str(x)[:30] for x in list(raw_q.get("out_of_range") or [])[:10]],
+                }
+            except (TypeError, ValueError):
+                audio_quality = None
+        result["report"] = build_report(prediction_name, result["probabilities"], mri, audio, audio_quality)
 
         # SAVE EVERYTHING IN A SINGLE ROW (Now including patient_id)
         save_prediction({
@@ -209,7 +396,8 @@ def predict_mri():
     tmp.close()
     try:
         file.save(tmp.name)
-        result = run_inference(tmp.name)
+        with MODEL_LOCK:
+            result = run_inference(tmp.name)
     except Exception as e:
         return jsonify({"error": f"Inference failed: {e}"}), 500
     finally:
@@ -251,18 +439,23 @@ def predict_audio():
     file.save(temp_path)
 
     try:
-        result = get_audio_prediction(str(temp_path))
+        with MODEL_LOCK:
+            result = get_audio_prediction(str(temp_path))
 
         if result["status"] == "error":
             return jsonify({"error": result["message"]}), 500
 
         audio_probs = result["probabilities"]
-
-        return jsonify({
+        response = {
             "message": "Audio processed successfully.",
             "filename": file.filename,
-            "probabilities": [round(p, 6) for p in audio_probs]
-        }), 200
+            "probabilities": [round(p, 6) for p in audio_probs],
+        }
+        try:
+            response.update(explain_audio(result.get("features", {})))
+        except Exception as expl_error:  # the explanation must never break the prediction
+            print(f"Audio explanation unavailable: {expl_error}")
+        return jsonify(response), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

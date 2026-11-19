@@ -1,45 +1,34 @@
-{% extends "base.html" %}
+{% extends "_auth_layout.html" %}
 
-{% block content %}
-<div class="row justify-content-center mt-5">
-    <div class="col-md-5">
-        <div class="clinical-card">
-            <span class="section-number">CLINICAL ACCESS</span>
-            <h2 class="mb-4">Log In</h2>
-            
-            <!-- Flash messages for errors -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} rounded-0">{{ message }}</div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
+{% block auth_form %}
+<span class="section-number">CLINICAL ACCESS</span>
+<h2 class="mb-1">Welcome back</h2>
+<p class="text-muted mb-4">Log in to run evaluations and manage your patients.</p>
 
-            <form action="{{ url_for('login', next=request.args.get('next')) if request.args.get('next') else url_for('login') }}" method="POST">
-                <div class="mb-3">
-                    <label class="form-label">Email Address</label>
-                    <input type="email" class="form-control" name="email" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Password</label>
-                    <input type="password" class="form-control" name="password" required>
-                </div>
-                
-                <div class="form-check mb-4">
-                    <input class="form-check-input rounded-0" type="checkbox" id="habeasData" required>
-                    <label class="form-check-label small text-muted" for="habeasData">
-                        I authorize the processing of my personal data in accordance with Law 1581 of 2012.
-                    </label>
-                </div>
-
-                <button type="submit" class="btn btn-custom w-100">Enter System</button>
-            </form>
-            
-            <div class="text-center mt-4">
-                 <p class="small text-muted">Don't have an account? <a href="{{ url_for('register') }}" style="color: var(--accent);">Create one</a></p>
-            </div>
+<form action="{{ url_for('login', next=request.args.get('next')) if request.args.get('next') else url_for('login') }}" method="POST">
+    <div class="mb-3">
+        <label class="form-label" for="email">Email address</label>
+        <div class="input-icon">
+            <span class="ico">@</span>
+            <input type="email" class="form-control" id="email" name="email" autocomplete="email" placeholder="you@example.com" required autofocus>
         </div>
     </div>
-</div>
+    <div class="mb-3">
+        <label class="form-label" for="password">Password</label>
+        <div class="input-icon">
+            <span class="ico">•</span>
+            <input type="password" class="form-control" id="password" name="password" autocomplete="current-password" placeholder="Your password" required>
+            <button type="button" class="toggle-pw" data-target="password" aria-label="Show password">Show</button>
+        </div>
+    </div>
+    <div class="form-check mb-4">
+        <input class="form-check-input rounded-0" type="checkbox" id="habeasData" required>
+        <label class="form-check-label small text-muted" for="habeasData">
+            I authorize the processing of my personal data in accordance with Law 1581 of 2012.
+        </label>
+    </div>
+    <button type="submit" class="btn btn-custom w-100">Log in</button>
+</form>
+
+<p class="small text-muted text-center mt-4 mb-0">Don't have an account? <a href="{{ url_for('register') }}">Create one</a></p>
 {% endblock %}

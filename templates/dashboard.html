@@ -15,10 +15,33 @@
     .comment-box.level-Moderate { border-left-color: var(--danger); background: rgba(244, 63, 94, .07); }
     .disclaimer { border: 1px dashed var(--border-color); padding: .75rem 1rem; font-size: .9rem; }
     .progress { background-color: var(--bg-darker); }
+    .prob-chip { border: 1px solid var(--border-color); background: var(--bg-darker); padding: .5rem .75rem; display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: .9rem; }
+    .markers-table th { color: var(--accent); font-weight: 500; border-color: var(--border-color); }
+    .markers-table td { border-color: var(--border-color); color: var(--text-main); }
+    .eff-impairment { color: var(--danger); } .eff-healthy { color: #4ade80; } .eff-neutral { color: #9CA3AF; }
+    .band-High { background: #14532d; color: #bbf7d0; } .band-Moderate { background: #713f12; color: #fde68a; } .band-Low { background: #7f1d1d; color: #fecaca; }
+    @media (min-width: 768px) { .border-end-md { border-right: 1px solid var(--border-color); } }
+    @media print {
+        nav, footer, #predictionForm, .no-print, hr, #errorBox { display: none !important; }
+        body, .clinical-card { background: #fff !important; color: #111 !important; box-shadow: none !important; }
+        .clinical-card { border: 1px solid #bbb !important; break-inside: avoid; }
+        .text-muted, .markers-table td, .markers-table th, h1, h2, h5, h6, .section-number, .text-accent { color: #111 !important; }
+        .comment-box, .prob-chip { background: #f3f4f6 !important; }
+        #resultsSection { display: block !important; }
+        main { padding-top: 0 !important; }
+        #resultsSection .row > [class*="col-"] { flex: 0 0 100% !important; max-width: 100% !important; width: 100% !important; }
+        #resultsSection .h-100 { height: auto !important; }
+        .border-end-md { border-right: 0 !important; }
+        .mri-result-img { max-height: 220px !important; background: #000 !important; }
+        .progress { background: #e5e7eb !important; }
+        .eff-impairment { color: #b91c1c !important; } .eff-healthy { color: #15803d !important; }
+        .result-Normal { color: #15803d !important; } .result-Mild { color: #a16207 !important; } .result-Moderate { color: #b91c1c !important; }
+        @page { margin: 14mm; }
+    }
     .result-Normal { color: #4ade80 !important; } .result-Mild { color: var(--primary) !important; } .result-Moderate { color: var(--danger) !important; }
 </style>
 
-<div class="row mb-4">
+<div class="row mb-4 no-print">
     <div class="col-12">
         <span class="section-number">01 — NEW EVALUATION</span>
         <h2 class="mb-3">Analyze Patient</h2>
@@ -122,86 +145,101 @@
     </div>
 </form>
 
-<!-- RESULTS SECTION -->
+<!-- RESULTS SECTION: screening report -->
 <div id="resultsSection" class="d-none">
-    <hr class="mb-5">
-    <div class="row mb-4">
-        <div class="col-12 text-center">
-            <span class="section-number">02 — FUSION RESULTS</span>
-            <h2 id="finalDiagnosis" class="display-3 text-accent mb-2">Normal</h2>
-            <p class="mono-number text-muted fs-5" id="finalConfidence">Global confidence: 0.00%</p>
+    <hr class="mb-5 no-print">
+
+    <div class="report-head d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <span class="section-number">02 — SCREENING REPORT · SIMULATION</span>
+            <h2 class="mb-1">Multimodal Screening Report</h2>
+            <p class="text-muted small mb-0">
+                Patient: <strong id="repPatient">—</strong> · Date: <span id="repDate">—</span> · Report <span id="repId" class="mono-number">—</span>
+            </p>
+        </div>
+        <button type="button" class="btn btn-outline-light rounded-0 no-print" id="printBtn">🖨 Print / Save as PDF</button>
+    </div>
+
+    <!-- 1. Result -->
+    <div class="clinical-card p-4 mb-4">
+        <div class="row g-4 align-items-center">
+            <div class="col-md-4 text-center border-end-md">
+                <p class="small text-muted mb-1">Fusion risk level</p>
+                <h2 id="finalDiagnosis" class="display-3 mb-1">Normal</h2>
+                <p class="mono-number text-muted mb-2" id="finalConfidence">Global confidence: 0.00%</p>
+                <span class="badge rounded-0 px-3 py-2" id="bandBadge">—</span>
+            </div>
+            <div class="col-md-8">
+                <h6 class="text-accent mb-2">1. Summary</h6>
+                <div id="commentBox" class="comment-box mb-3">
+                    <p class="mb-0" id="commentSummary"></p>
+                </div>
+                <p class="small mb-1" id="bandText"></p>
+                <p class="small text-muted mb-3" id="secondText"></p>
+                <div class="row g-2">
+                    <div class="col-4"><div class="prob-chip"><span>Normal</span><b id="fNormal">0%</b></div></div>
+                    <div class="col-4"><div class="prob-chip"><span>Mild</span><b id="fMild">0%</b></div></div>
+                    <div class="col-4"><div class="prob-chip"><span>Moderate</span><b id="fModerate">0%</b></div></div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Partial interpretation (simulation) -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="clinical-card p-4">
-                <span class="section-number">PRELIMINARY INTERPRETATION · SIMULATION</span>
-                <div id="commentBox" class="comment-box mt-2">
-                    <p class="mb-2" id="commentSummary"></p>
-                    <ul class="mb-0 small" id="commentNotes"></ul>
+    <!-- 2. Evidence by modality -->
+    <h6 class="text-accent mb-3">2. Evidence by modality</h6>
+    <div class="row g-4 mb-4">
+        <div class="col-lg-5">
+            <div class="clinical-card p-4 h-100">
+                <h5 class="mb-3 border-bottom border-secondary pb-3">Structural (MRI) <span class="small text-muted" id="mriClassLabel"></span></h5>
+                <img id="mriResultImg" class="mri-result-img mb-3" alt="MRI image analyzed by the model">
+                <p class="small mb-3" id="mriFinding"></p>
+                <div class="mb-2 d-flex justify-content-between mono-number"><span>Normal</span> <span id="mriNormalVal">0.0%</span></div>
+                <div class="progress rounded-0 mb-3" style="height: 8px;"><div id="mriNormalBar" class="progress-bar bg-success" style="width: 0%"></div></div>
+                <div class="mb-2 d-flex justify-content-between mono-number"><span>Mild</span> <span id="mriMildVal">0.0%</span></div>
+                <div class="progress rounded-0 mb-3" style="height: 8px;"><div id="mriMildBar" class="progress-bar bg-warning" style="width: 0%"></div></div>
+                <div class="mb-2 d-flex justify-content-between mono-number"><span>Moderate</span> <span id="mriModerateVal">0.0%</span></div>
+                <div class="progress rounded-0 mb-2" style="height: 8px;"><div id="mriModerateBar" class="progress-bar bg-danger" style="width: 0%"></div></div>
+                <p class="small text-muted mb-0 mt-3">The MRI model (HOG features + SVM) compares edges and shapes of the slice with the training images; it does not measure volumes.</p>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <div class="clinical-card p-4 h-100">
+                <h5 class="mb-3 border-bottom border-secondary pb-3">Functional (voice) <span class="small text-muted" id="audioSourceLabel"></span></h5>
+                <audio id="audioResultPlayer" controls class="w-100 mb-3 no-print"></audio>
+                <p class="small mb-3" id="voiceSummary"></p>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle small mb-2 markers-table">
+                        <thead><tr><th>Acoustic marker</th><th class="text-end">Value</th><th>vs. training average</th><th>Effect on result</th></tr></thead>
+                        <tbody id="markersBody"></tbody>
+                    </table>
                 </div>
-                <p class="disclaimer text-muted mt-3 mb-0" id="commentDisclaimer"></p>
+                <p class="small text-muted mb-0">“Effect” is estimated with the logistic-regression member of the voice ensemble: it shows which markers pushed this sample towards or away from the Alzheimer's pattern.</p>
             </div>
         </div>
     </div>
 
-    <div class="row g-4">
-        <!-- MRI Probabilities + analyzed image -->
-        <div class="col-md-6">
+    <!-- 3-4. Reliability and next steps -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
             <div class="clinical-card p-4 h-100">
-                <h5 class="mb-3 border-bottom border-secondary pb-3">MRI Prediction <span class="small text-muted" id="mriClassLabel"></span></h5>
-                <img id="mriResultImg" class="mri-result-img mb-4" alt="MRI image analyzed by the model">
-
-                <div class="mb-2 d-flex justify-content-between mono-number">
-                    <span>Normal</span> <span id="mriNormalVal">0.0%</span>
-                </div>
-                <div class="progress rounded-0 mb-4" style="height: 8px;">
-                    <div id="mriNormalBar" class="progress-bar bg-success" style="width: 0%"></div>
-                </div>
-                <div class="mb-2 d-flex justify-content-between mono-number">
-                    <span>Mild</span> <span id="mriMildVal">0.0%</span>
-                </div>
-                <div class="progress rounded-0 mb-4" style="height: 8px;">
-                    <div id="mriMildBar" class="progress-bar bg-warning" style="width: 0%"></div>
-                </div>
-                <div class="mb-2 d-flex justify-content-between mono-number">
-                    <span>Moderate</span> <span id="mriModerateVal">0.0%</span>
-                </div>
-                <div class="progress rounded-0 mb-2" style="height: 8px;">
-                    <div id="mriModerateBar" class="progress-bar bg-danger" style="width: 0%"></div>
-                </div>
+                <h6 class="text-accent mb-3">3. Reliability of this result</h6>
+                <p class="small mb-2" id="agreeText"></p>
+                <ul class="small mb-0" id="reliabilityList"></ul>
             </div>
         </div>
-
-        <!-- Audio Probabilities -->
-        <div class="col-md-6">
+        <div class="col-lg-6">
             <div class="clinical-card p-4 h-100">
-                <h5 class="mb-3 border-bottom border-secondary pb-3">Audio Prediction <span class="small text-muted" id="audioSourceLabel"></span></h5>
-                <audio id="audioResultPlayer" controls class="w-100 mb-4"></audio>
-
-                <div class="mb-2 d-flex justify-content-between mono-number">
-                    <span>Normal</span> <span id="audioNormalVal">0.0%</span>
-                </div>
-                <div class="progress rounded-0 mb-4" style="height: 8px;">
-                    <div id="audioNormalBar" class="progress-bar bg-success" style="width: 0%"></div>
-                </div>
-                <div class="mb-2 d-flex justify-content-between mono-number">
-                    <span>Mild</span> <span id="audioMildVal">0.0%</span>
-                </div>
-                <div class="progress rounded-0 mb-4" style="height: 8px;">
-                    <div id="audioMildBar" class="progress-bar bg-warning" style="width: 0%"></div>
-                </div>
-                <div class="mb-2 d-flex justify-content-between mono-number">
-                    <span>Moderate</span> <span id="audioModerateVal">0.0%</span>
-                </div>
-                <div class="progress rounded-0 mb-3" style="height: 8px;">
-                    <div id="audioModerateBar" class="progress-bar bg-danger" style="width: 0%"></div>
-                </div>
-                <p class="small text-muted mb-0">The voice model is binary (healthy vs. Alzheimer's); its Alzheimer's probability is split 70 % Mild / 30 % Moderate.</p>
+                <h6 class="text-accent mb-3">4. Suggested next steps <span class="text-muted">(simulation)</span></h6>
+                <ul class="small mb-0" id="nextSteps"></ul>
             </div>
         </div>
+    </div>
+
+    <!-- 5. Limitations -->
+    <div class="clinical-card p-4 mb-2">
+        <h6 class="text-accent mb-3">5. Limitations</h6>
+        <ul class="small text-muted mb-3" id="limitationsList"></ul>
+        <p class="disclaimer text-muted mb-0" id="commentDisclaimer"></p>
     </div>
 </div>
 {% endblock %}

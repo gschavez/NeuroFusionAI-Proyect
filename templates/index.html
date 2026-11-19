@@ -1,6 +1,23 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+    .hero-visual { border: 1px solid var(--border-color); background: var(--card-bg); padding: 1.25rem; border-radius: 4px; }
+    .hero-visual svg { width: 100%; height: auto; display: block; }
+    .hero-visual .node { fill: var(--bg-darker); stroke: var(--accent); stroke-width: 3; }
+    .hero-visual .node.fusion { stroke: var(--primary); stroke-width: 4; }
+    .hero-visual .brain { fill: none; stroke: #9CA3AF; stroke-width: 2.5; }
+    .hero-visual .brain-line, .hero-visual .wave { fill: none; stroke: #9CA3AF; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .hero-visual .flow { fill: none; stroke: var(--accent); stroke-width: 3; stroke-dasharray: 8 8; animation: dash 1.6s linear infinite; }
+    .hero-visual .flow.out { stroke: var(--primary); }
+    .hero-visual .lbl { fill: var(--text-main); font-family: 'IBM Plex Mono', monospace; font-size: 15px; text-anchor: middle; letter-spacing: 2px; }
+    .hero-visual .lbl.small { font-size: 11px; fill: var(--primary); }
+    .hero-visual .risk.r1 { fill: #4ade80; } .hero-visual .risk.r2 { fill: var(--primary); } .hero-visual .risk.r3 { fill: var(--danger); }
+    .hero-visual .pulse { animation: pulse 2.4s ease-in-out infinite; transform-origin: 225px 180px; }
+    @keyframes dash { to { stroke-dashoffset: -32; } }
+    @keyframes pulse { 0%, 100% { opacity: .5; transform: scale(.92); } 50% { opacity: 1; transform: scale(1.05); } }
+    @media (prefers-reduced-motion: reduce) { .hero-visual .flow, .hero-visual .pulse { animation: none; } }
+</style>
 <div class="row align-items-center mb-5">
     <div class="col-lg-8">
         <span class="section-number">01 — INTRODUCTION</span>
@@ -9,7 +26,7 @@
             NeuroFusion AI reduces the omission rate in initial Alzheimer's evaluations by combining magnetic resonance imaging (MRI) analysis with the acoustic analysis of the patient's voice.
         </p>
         <div class="d-flex gap-3 mt-4">
-                        {% if session.get('user_id') %}
+            {% if session.get('user_id') %}
             <a href="/dashboard" class="btn btn-custom">Start Evaluation</a>
             <a href="/models" class="btn btn-outline-light rounded-0">View Models</a>
             {% else %}
@@ -18,10 +35,41 @@
             {% endif %}
         </div>
     </div>
-    <div class="col-lg-4 text-end d-none d-lg-block">
-        <!-- Clinical SVG illustration placeholder -->
-        <div style="width: 100%; height: 300px; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; color: var(--border-color);">
-            [Clinical Illustration]
+    <div class="col-lg-4 d-none d-lg-block">
+        <div class="hero-visual">
+        <svg viewBox="0 0 360 360" role="img" aria-label="MRI and voice are analysed separately and combined by late fusion into a risk level">
+            <defs>
+                <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#FACC15" stop-opacity=".35"/>
+                    <stop offset="100%" stop-color="#FACC15" stop-opacity="0"/>
+                </radialGradient>
+            </defs>
+            <!-- links -->
+            <path class="flow" d="M100 92 C 150 92, 160 180, 200 180" />
+            <path class="flow" d="M100 268 C 150 268, 160 180, 200 180" />
+            <path class="flow out" d="M250 180 L 300 180" />
+            <!-- MRI node -->
+            <circle cx="70" cy="92" r="46" class="node" />
+            <ellipse cx="70" cy="92" rx="28" ry="32" class="brain" />
+            <path d="M70 62 C 62 72, 78 80, 70 92 C 62 104, 78 112, 70 122" class="brain-line" />
+            <path d="M52 80 q 8 6 0 12 M88 80 q -8 6 0 12 M52 100 q 8 6 0 12 M88 100 q -8 6 0 12" class="brain-line" />
+            <text x="70" y="160" class="lbl">MRI</text>
+            <!-- Voice node -->
+            <circle cx="70" cy="268" r="46" class="node" />
+            <path d="M40 268 l8 0 l5 -14 l7 30 l7 -40 l7 48 l7 -34 l7 20 l5 -10 l8 0" class="wave" />
+            <text x="70" y="336" class="lbl">Voice</text>
+            <!-- Fusion node -->
+            <circle cx="225" cy="180" r="70" fill="url(#glow)" class="pulse" />
+            <circle cx="225" cy="180" r="36" class="node fusion" />
+            <text x="225" y="175" class="lbl small">LATE</text>
+            <text x="225" y="191" class="lbl small">FUSION</text>
+            <!-- Risk -->
+            <circle cx="318" cy="150" r="9" class="risk r1" />
+            <circle cx="318" cy="180" r="9" class="risk r2" />
+            <circle cx="318" cy="210" r="9" class="risk r3" />
+            <text x="318" y="246" class="lbl small">RISK</text>
+        </svg>
+        <p class="small text-muted text-center mt-2 mb-0">Two independent models, one combined risk level.</p>
         </div>
     </div>
 </div>

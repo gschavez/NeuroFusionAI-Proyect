@@ -92,9 +92,12 @@ def get_audio_prediction(audio_path):
         prob_mild = prob_alzheimer * 0.7
         prob_moderate = prob_alzheimer * 0.3
         
+        feature_names = ["duration", "pitch_mean", "rms_mean", "pause_ratio", "zcr_mean",
+                         "spectral_centroid"] + [f"mfcc_{i}" for i in range(1, 14)]
         return {
             "status": "success",
-            "probabilities": [prob_normal, prob_mild, prob_moderate]
+            "probabilities": [prob_normal, prob_mild, prob_moderate],
+            "features": {n: float(v) for n, v in zip(feature_names, features)},
         }
         
     except Exception as e:

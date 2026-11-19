@@ -226,7 +226,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     audio_probabilities: audioJson.probabilities,
                     mri_filename: mriFile.name,
                     audio_filename: audio.file.name,
-                    patient_id: patientId
+                    patient_id: patientId,
+                    audio_quality: audioJson.quality || null
                 })
             });
             const fusionJson = await readJson(fusionRes);
@@ -249,40 +250,98 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderResults(mriJson, audioJson, fusionJson, mriFile, audio) {
         resultsSection.classList.remove('d-none');
+        const rep = fusionJson.report || {};
+        const pct = (v, d = 1) => (v * 100).toFixed(d) + '%';
 
+        // Header
+        const opt = patientSelect.options[patientSelect.selectedIndex];
+        document.getElementById('repPatient').textContent = opt ? opt.text : '—';
+        const now = new Date();
+        document.getElementById('repDate').textContent = now.toLocaleString();
+        document.getElementById('repId').textContent = 'NF-' + now.getTime().toString(36).toUpperCase();
+
+        // 1. Result + summary
         const final = document.getElementById('finalDiagnosis');
         final.textContent = fusionJson.prediction;
-        final.className = 'display-3 mb-2 result-' + fusionJson.prediction;
-        const finalProb = Math.max(...Object.values(fusionJson.probabilities));
-        document.getElementById('finalConfidence').textContent = `Global confidence: ${(finalProb * 100).toFixed(2)}%`;
-
-        // Preliminary interpretation (simulation)
+        final.className = 'display-3 mb-1 result-' + fusionJson.prediction;
+        const probs = fusionJson.probabilities;
+        document.getElementById('finalConfidence').textContent = `Global confidence: ${pct(Math.max(...Object.values(probs)), 2)}`;
+        const badge = document.getElementById('bandBadge');
+        badge.textContent = (rep.confidence_band || '—') + ' confidence';
+        badge.className = 'badge rounded-0 px-3 py-2 band-' + (rep.confidence_band || 'Low');
+        document.getElementById('bandText').textContent = rep.confidence_text || '';
+        document.getElementById('secondText').textContent = rep.second_class
+            ? `Second most likely class: ${rep.second_class} (${pct(rep.second_probability)}).` : '';
+        document.getElementById('fNormal').textContent = pct(probs.Normal || 0);
+        document.getElementById('fMild').textContent = pct(probs.Mild || 0);
+        document.getElementById('fModerate').textContent = pct(probs.Moderate || 0);
         const c = fusionJson.comment || {};
-        const box = document.getElementById('commentBox');
-        box.className = 'comment-box mt-2 level-' + fusionJson.prediction;
+        document.getElementById('commentBox').className = 'comment-box mb-3 level-' + fusionJson.prediction;
         document.getElementById('commentSummary').textContent = c.summary || '';
-        const notes = document.getElementById('commentNotes');
-        notes.innerHTML = '';
-        (c.notes || []).forEach(n => { const li = document.createElement('li'); li.textContent = n; notes.appendChild(li); });
-        document.getElementById('commentDisclaimer').textContent = c.disclaimer || fusionJson.notice || '';
 
-        // MRI: show the analyzed image next to its probabilities
-        const img = document.getElementById('mriResultImg');
-        img.src = mriPreviewUrl || URL.createObjectURL(mriFile);
-        document.getElementById('mriClassLabel').textContent = `· ${mriJson.class_name} (${(mriJson.confidence * 100).toFixed(1)}%)`;
+        // 2a. MRI evidence
+        document.getElementById('mriResultImg').src = mriPreviewUrl || URL.createObjectURL(mriFile);
+        document.getElementById('mriClassLabel').textContent = `· ${mriJson.class_name} (${pct(mriJson.confidence)})`;
+        document.getElementById('mriFinding').textContent = (rep.mri && rep.mri.finding) || '';
         updateBar('mriNormal', mriJson.probabilities[0]);
         updateBar('mriMild', mriJson.probabilities[1]);
         updateBar('mriModerate', mriJson.probabilities[2]);
 
-        // Audio: play back what was analyzed
+        // 2b. Voice evidence
         document.getElementById('audioSourceLabel').textContent = '· ' + audio.source;
         document.getElementById('audioResultPlayer').src = (audio.file === recordedWav && recordedUrl) ? recordedUrl : URL.createObjectURL(audio.file);
-        updateBar('audioNormal', audioJson.probabilities[0]);
-        updateBar('audioMild', audioJson.probabilities[1]);
-        updateBar('audioModerate', audioJson.probabilities[2]);
+        const v = rep.voice || {};
+        const ap = audioJson.probabilities;
+        document.getElementById('voiceSummary').textContent =
+            `${v.label || ''}: P(Alzheimer's) = ${pct(v.p_alzheimer != null ? v.p_alzheimer : ap[1] + ap[2])} ` +
+            `(shown to the fusion model as Normal ${pct(ap[0])} · Mild ${pct(ap[1])} · Moderate ${pct(ap[2])}).`;
+        const body = document.getElementById('markersBody');
+        body.innerHTML = '';
+        const effText = { impairment: '▲ towards impairment', healthy: '▼ towards healthy', neutral: '— little effect' };
+        (audioJson.markers || []).forEach(m => {
+            const tr = document.createElement('tr');
+            const td = (txt, cls) => { const el = document.createElement('td'); el.textContent = txt; if (cls) el.className = cls; return el; };
+            const name = document.createElement('td');
+            name.innerHTML = '';
+            const strong = document.createElement('strong'); strong.textContent = m.label;
+            const small = document.createElement('div'); small.className = 'text-muted'; small.textContent = m.meaning;
+            name.appendChild(strong); name.appendChild(small);
+            tr.appendChild(name);
+            tr.appendChild(td(m.value == null ? '—' : String(m.value), 'text-end mono-number'));
+            tr.appendChild(td(m.position ? `${m.position} average (z = ${m.z})` : 'combined'));
+            tr.appendChild(td(effText[m.direction] || m.direction, 'eff-' + m.direction));
+            body.appendChild(tr);
+        });
+        if (!(audioJson.markers || []).length) {
+            const tr = document.createElement('tr');
+            const tdEl = document.createElement('td'); tdEl.colSpan = 4; tdEl.className = 'text-muted';
+            tdEl.textContent = 'Acoustic markers are not available for this sample.';
+            tr.appendChild(tdEl); body.appendChild(tr);
+        }
+
+        // 3. Reliability, 4. Next steps, 5. Limitations
+        document.getElementById('agreeText').innerHTML = '';
+        const agree = document.createElement('span');
+        agree.textContent = rep.modalities_agree
+            ? `✔ MRI (${rep.mri ? rep.mri.label : mriJson.class_name}) and voice (${v.label || ''}) point in the same direction.`
+            : `✖ MRI (${rep.mri ? rep.mri.label : mriJson.class_name}) and voice (${v.label || ''}) point in different directions.`;
+        agree.className = rep.modalities_agree ? 'eff-healthy' : 'eff-impairment';
+        document.getElementById('agreeText').appendChild(agree);
+        fillList('reliabilityList', rep.reliability);
+        fillList('nextSteps', rep.next_steps);
+        fillList('limitationsList', rep.limitations);
+        document.getElementById('commentDisclaimer').textContent = c.disclaimer || fusionJson.notice || '';
 
         resultsSection.scrollIntoView({ behavior: 'smooth' });
     }
+
+    function fillList(id, items) {
+        const ul = document.getElementById(id);
+        ul.innerHTML = '';
+        (items || []).forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+    }
+
+    document.getElementById('printBtn').addEventListener('click', () => window.print());
 
     function updateBar(prefix, value) {
         const percentage = (value * 100).toFixed(2);

@@ -1,0 +1,60 @@
+{# Shared layout for login and register. Child templates fill the "auth_form" block. #}
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .auth-wrap { max-width: 1040px; margin: 1.5rem auto 0; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    .auth-side { background: linear-gradient(160deg, #0B0E14 0%, #16202d 100%); padding: 3rem 2.5rem; position: relative; }
+    .auth-side h2 { font-size: 2rem; line-height: 1.15; }
+    .auth-side .feature { display: flex; gap: .9rem; align-items: flex-start; margin-bottom: 1.25rem; }
+    .auth-side .feature .ico { flex: 0 0 38px; height: 38px; border: 1px solid var(--accent); color: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+    .auth-side .feature p { margin: 0; font-size: .92rem; color: #9CA3AF; }
+    .auth-side .feature strong { color: var(--text-main); display: block; font-weight: 600; }
+    .auth-side .deco { position: absolute; right: -50px; top: -50px; width: 170px; opacity: .12; }
+    .auth-form { background: var(--card-bg); padding: 3rem 2.5rem; }
+    .auth-form .form-control { padding: .7rem .9rem; }
+    .auth-form .input-icon { position: relative; }
+    .auth-form .input-icon .form-control { padding-left: 2.6rem; }
+    .auth-form .input-icon .ico { position: absolute; left: .9rem; top: 50%; transform: translateY(-50%); color: #6B7280; pointer-events: none; }
+    .auth-form .toggle-pw { position: absolute; right: .5rem; top: 50%; transform: translateY(-50%); background: none; border: 0; color: #9CA3AF; font-size: .8rem; padding: .25rem .5rem; }
+    .auth-form .toggle-pw:hover { color: var(--accent); }
+    .auth-form .btn-custom { padding: .8rem; font-size: 1rem; }
+    .auth-form a { color: var(--accent); }
+</style>
+
+<div class="auth-wrap row g-0">
+    <div class="col-lg-5 auth-side d-none d-lg-block">
+        <span class="section-number">NEUROFUSION AI</span>
+        <h2 class="mb-4">{% block side_title %}Clinical access to multimodal screening.{% endblock %}</h2>
+        <div class="feature"><div class="ico">◎</div><p><strong>MRI + voice</strong>Two independent models combined by late fusion.</p></div>
+        <div class="feature"><div class="ico">⚿</div><p><strong>Protected access</strong>Models, patients and history are only available to registered users.</p></div>
+        <div class="feature"><div class="ico">§</div><p><strong>Habeas Data</strong>Personal data processed under Law 1581 of 2012.</p></div>
+        <p class="small text-muted mt-4 mb-0">Academic prototype — it does not replace a professional medical diagnosis.</p>
+        <svg class="deco" viewBox="0 0 200 200" aria-hidden="true">
+            <circle cx="100" cy="100" r="90" fill="none" stroke="#38BDF8" stroke-width="3"/>
+            <circle cx="100" cy="100" r="55" fill="none" stroke="#FACC15" stroke-width="3"/>
+            <path d="M20 100 l25 0 l10 -30 l15 60 l15 -80 l15 90 l15 -60 l10 20 l55 0" fill="none" stroke="#38BDF8" stroke-width="3"/>
+        </svg>
+    </div>
+    <div class="col-lg-7 auth-form">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} rounded-0 py-2">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
+        {% block auth_form %}{% endblock %}
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.toggle-pw').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        btn.textContent = show ? 'Hide' : 'Show';
+        btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    });
+});
+</script>
+{% endblock %}
