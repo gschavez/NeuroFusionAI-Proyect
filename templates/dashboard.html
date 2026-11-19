@@ -1,26 +1,43 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+    .mri-preview { max-width: 100%; max-height: 260px; border: 1px solid var(--border-color); background: #000; object-fit: contain; }
+    .mri-result-img { width: 100%; max-height: 340px; object-fit: contain; background: #000; border: 1px solid var(--border-color); }
+    .rec-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--danger); margin-right: 8px; animation: recblink 1s infinite; }
+    @keyframes recblink { 50% { opacity: .2; } }
+    .rec-timer { font-family: 'IBM Plex Mono', monospace; font-size: 1.6rem; color: var(--primary); }
+    .nav-tabs .nav-link { color: var(--text-main) !important; border-color: transparent; }
+    .nav-tabs .nav-link.active { background: var(--bg-darker); color: var(--primary) !important; border-color: var(--border-color) var(--border-color) transparent; }
+    .nav-tabs { border-color: var(--border-color); }
+    .comment-box { border-left: 4px solid var(--accent); background: rgba(56, 189, 248, .06); padding: 1.25rem 1.5rem; }
+    .comment-box.level-Mild { border-left-color: var(--primary); background: rgba(250, 204, 21, .06); }
+    .comment-box.level-Moderate { border-left-color: var(--danger); background: rgba(244, 63, 94, .07); }
+    .disclaimer { border: 1px dashed var(--border-color); padding: .75rem 1rem; font-size: .9rem; }
+    .progress { background-color: var(--bg-darker); }
+    .result-Normal { color: #4ade80 !important; } .result-Mild { color: var(--primary) !important; } .result-Moderate { color: var(--danger) !important; }
+</style>
+
 <div class="row mb-4">
     <div class="col-12">
         <span class="section-number">01 — NEW EVALUATION</span>
         <h2 class="mb-3">Analyze Patient</h2>
-        <p class="text-muted">Upload the patient's MRI and audio sample to obtain the cognitive risk level through Late Fusion.</p>
+        <p class="text-muted">Upload the patient's MRI and a voice sample (or record it here) to obtain the cognitive risk level through Late Fusion.</p>
     </div>
 </div>
 
 <hr class="mb-4">
 
-<form id="predictionForm" enctype="multipart/form-data">
-    
+<div id="errorBox" class="alert alert-danger d-none rounded-0" role="alert"></div>
+
+<form id="predictionForm" enctype="multipart/form-data" novalidate>
+
     <!-- PATIENT SELECTOR WITH SEARCH -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="clinical-card p-4">
                 <label for="patientSelect" class="form-label text-accent fw-bold mb-3">Select Patient for Evaluation</label>
-                
                 <input type="text" id="patientSearchInput" class="form-control bg-dark text-white border-info rounded-0 mb-3" placeholder="🔍 Type to search patient by name...">
-                
                 <select id="patientSelect" class="form-select bg-dark text-white border-secondary rounded-0">
                     <option value="" disabled selected>-- Select a registered patient --</option>
                     {% for p in patients %}
@@ -39,10 +56,14 @@
         <div class="col-md-6">
             <div class="clinical-card p-4 h-100">
                 <h4 class="mb-3">1. Magnetic Resonance Imaging (MRI)</h4>
-                <p class="small text-muted mb-4">Allowed formats: JPG, PNG.</p>
+                <p class="small text-muted mb-4">Allowed formats: JPG, PNG. One axial brain slice.</p>
                 <div class="mb-3">
                     <label for="mriFile" class="form-label">Select image</label>
-                    <input class="form-control" type="file" id="mriFile" name="mri_file" accept=".jpg,.jpeg,.png" required>
+                    <input class="form-control" type="file" id="mriFile" name="mri_file" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
+                </div>
+                <div id="mriPreviewWrap" class="text-center d-none">
+                    <img id="mriPreview" class="mri-preview" alt="Selected MRI image">
+                    <p class="small text-muted mt-2 mb-0" id="mriPreviewName"></p>
                 </div>
             </div>
         </div>
@@ -51,10 +72,42 @@
         <div class="col-md-6">
             <div class="clinical-card p-4 h-100">
                 <h4 class="mb-3">2. Voice Sample</h4>
-                <p class="small text-muted mb-4">Allowed formats: WAV, MP3.</p>
-                <div class="mb-3">
-                    <label for="audioFile" class="form-label">Select audio</label>
-                    <input class="form-control" type="file" id="audioFile" name="audio_file" accept=".wav,.mp3" required>
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="tab-upload" data-bs-toggle="tab" data-bs-target="#pane-upload" type="button" role="tab">Upload file</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tab-record" data-bs-toggle="tab" data-bs-target="#pane-record" type="button" role="tab">🎙 Record voice</button>
+                    </li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="pane-upload" role="tabpanel">
+                        <p class="small text-muted mb-3">Allowed formats: WAV, MP3.</p>
+                        <label for="audioFile" class="form-label">Select audio</label>
+                        <input class="form-control" type="file" id="audioFile" name="audio_file" accept=".wav,.mp3,audio/wav,audio/mpeg">
+                    </div>
+                    <div class="tab-pane fade" id="pane-record" role="tabpanel">
+                        <p class="small text-muted mb-3">
+                            Ask the patient to describe a picture or tell about their day in their own words.
+                            Speak for <strong>at least 30 seconds</strong> (ideally 60–90 s); the recording stops automatically at 2 minutes.
+                        </p>
+                        <div id="recUnsupported" class="alert alert-warning small d-none rounded-0">
+                            Recording is not available in this browser or page. It needs a modern browser, microphone permission and HTTPS (or localhost). You can still upload a file.
+                        </div>
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <button type="button" class="btn btn-custom" id="recStartBtn">● Start recording</button>
+                            <button type="button" class="btn btn-outline-danger d-none" id="recStopBtn">■ Stop</button>
+                            <span id="recStatus" class="d-none"><span class="rec-dot"></span><span class="rec-timer" id="recTimer">00:00</span></span>
+                        </div>
+                        <div id="recResult" class="d-none">
+                            <audio id="recPlayer" controls class="w-100 mb-2"></audio>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small text-muted" id="recInfo"></span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-0" id="recDiscardBtn">Discard and record again</button>
+                            </div>
+                            <div id="recShortWarn" class="small text-warning mt-2 d-none">This recording is short. The voice model was trained on recordings of about 1–2 minutes, so short samples give less reliable results.</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -80,26 +133,39 @@
         </div>
     </div>
 
+    <!-- Partial interpretation (simulation) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="clinical-card p-4">
+                <span class="section-number">PRELIMINARY INTERPRETATION · SIMULATION</span>
+                <div id="commentBox" class="comment-box mt-2">
+                    <p class="mb-2" id="commentSummary"></p>
+                    <ul class="mb-0 small" id="commentNotes"></ul>
+                </div>
+                <p class="disclaimer text-muted mt-3 mb-0" id="commentDisclaimer"></p>
+            </div>
+        </div>
+    </div>
+
     <div class="row g-4">
-        <!-- MRI Probabilities -->
+        <!-- MRI Probabilities + analyzed image -->
         <div class="col-md-6">
             <div class="clinical-card p-4 h-100">
-                <h5 class="mb-4 border-bottom border-secondary pb-3">MRI Prediction</h5>
-                
+                <h5 class="mb-3 border-bottom border-secondary pb-3">MRI Prediction <span class="small text-muted" id="mriClassLabel"></span></h5>
+                <img id="mriResultImg" class="mri-result-img mb-4" alt="MRI image analyzed by the model">
+
                 <div class="mb-2 d-flex justify-content-between mono-number">
                     <span>Normal</span> <span id="mriNormalVal">0.0%</span>
                 </div>
                 <div class="progress rounded-0 mb-4" style="height: 8px;">
                     <div id="mriNormalBar" class="progress-bar bg-success" style="width: 0%"></div>
                 </div>
-                
                 <div class="mb-2 d-flex justify-content-between mono-number">
                     <span>Mild</span> <span id="mriMildVal">0.0%</span>
                 </div>
                 <div class="progress rounded-0 mb-4" style="height: 8px;">
                     <div id="mriMildBar" class="progress-bar bg-warning" style="width: 0%"></div>
                 </div>
-
                 <div class="mb-2 d-flex justify-content-between mono-number">
                     <span>Moderate</span> <span id="mriModerateVal">0.0%</span>
                 </div>
@@ -112,28 +178,28 @@
         <!-- Audio Probabilities -->
         <div class="col-md-6">
             <div class="clinical-card p-4 h-100">
-                <h5 class="mb-4 border-bottom border-secondary pb-3">Audio Prediction</h5>
-                
+                <h5 class="mb-3 border-bottom border-secondary pb-3">Audio Prediction <span class="small text-muted" id="audioSourceLabel"></span></h5>
+                <audio id="audioResultPlayer" controls class="w-100 mb-4"></audio>
+
                 <div class="mb-2 d-flex justify-content-between mono-number">
                     <span>Normal</span> <span id="audioNormalVal">0.0%</span>
                 </div>
                 <div class="progress rounded-0 mb-4" style="height: 8px;">
                     <div id="audioNormalBar" class="progress-bar bg-success" style="width: 0%"></div>
                 </div>
-                
                 <div class="mb-2 d-flex justify-content-between mono-number">
                     <span>Mild</span> <span id="audioMildVal">0.0%</span>
                 </div>
                 <div class="progress rounded-0 mb-4" style="height: 8px;">
                     <div id="audioMildBar" class="progress-bar bg-warning" style="width: 0%"></div>
                 </div>
-
                 <div class="mb-2 d-flex justify-content-between mono-number">
                     <span>Moderate</span> <span id="audioModerateVal">0.0%</span>
                 </div>
-                <div class="progress rounded-0 mb-2" style="height: 8px;">
+                <div class="progress rounded-0 mb-3" style="height: 8px;">
                     <div id="audioModerateBar" class="progress-bar bg-danger" style="width: 0%"></div>
                 </div>
+                <p class="small text-muted mb-0">The voice model is binary (healthy vs. Alzheimer's); its Alzheimer's probability is split 70 % Mild / 30 % Moderate.</p>
             </div>
         </div>
     </div>

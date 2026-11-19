@@ -23,23 +23,23 @@
                     <li class="nav-item"><a class="nav-link px-2" href="/project">Project</a></li>
                     <li class="nav-item"><a class="nav-link px-2" href="/methodology">Methodology</a></li>
                     
-                    <!-- Models Dropdown -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle px-2" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            Models
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="navbarDropdown" style="background-color: var(--card-bg); border-color: var(--border-color);">
-                            <li><a class="dropdown-item" href="/model-mri" style="color: var(--text-main);">1. MRI Module</a></li>
-                            <li><a class="dropdown-item" href="/model-audio" style="color: var(--text-main);">2. Audio Module</a></li>
-                            <li><a class="dropdown-item" href="/model-fusion" style="color: var(--text-main);">3. Late Fusion</a></li>
-                        </ul>
-                    </li>
-                    
                     <li class="nav-item"><a class="nav-link px-2" href="/team">Team</a></li>
                     
                     {% if session.get('user_id') %}
-                        <!-- Private Routes -->
-                        <li class="nav-item ms-3"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+                        <!-- Private Routes (only after login) -->
+                        <li class="nav-item dropdown ms-lg-3">
+                            <a class="nav-link dropdown-toggle px-2" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Models
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="navbarDropdown" style="background-color: var(--card-bg); border-color: var(--border-color);">
+                                <li><a class="dropdown-item" href="/models" style="color: var(--text-main);">Overview</a></li>
+                                <li><a class="dropdown-item" href="/model-mri" style="color: var(--text-main);">1. MRI Module</a></li>
+                                <li><a class="dropdown-item" href="/model-audio" style="color: var(--text-main);">2. Audio Module</a></li>
+                                <li><a class="dropdown-item" href="/model-fusion" style="color: var(--text-main);">3. Late Fusion</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/patients">Patients</a></li>
                         <li class="nav-item"><a class="nav-link" href="/history">History</a></li>
                         <li class="nav-item ms-3">
                             <a class="btn btn-outline-danger btn-sm rounded-0" href="/logout">Log Out</a>

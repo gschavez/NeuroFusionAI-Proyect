@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="clinical-card p-4">
+            <span class="section-number">CLINICAL ACCESS</span>
+            <h2 class="mb-4">Create Account</h2>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} rounded-0">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form action="{{ url_for('register') }}" method="POST">
+                <div class="mb-3">
+                    <label class="form-label" for="email">Email Address</label>
+                    <input type="email" class="form-control" id="email" name="email" value="{{ email }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" class="form-control" id="password" name="password" minlength="8" required>
+                    <div class="form-text text-muted small">At least 8 characters, with letters and numbers.</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="confirm">Confirm Password</label>
+                    <input type="password" class="form-control" id="confirm" name="confirm" minlength="8" required>
+                </div>
+                <div class="form-check mb-4">
+                    <input class="form-check-input rounded-0" type="checkbox" id="habeasData" name="habeas_data" value="1" required>
+                    <label class="form-check-label small text-muted" for="habeasData">
+                        I authorize the processing of my personal data in accordance with Law 1581 of 2012.
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-custom w-100">Create Account</button>
+            </form>
+
+            <div class="text-center mt-4">
+                <p class="small text-muted mb-0">Already have an account? <a href="{{ url_for('login') }}" style="color: var(--accent);">Log in</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

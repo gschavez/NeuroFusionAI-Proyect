@@ -1,7 +1,10 @@
 import os
 import gc
+import re
 import tempfile
+from functools import wraps
 from pathlib import Path
+from urllib.parse import urlparse
 
 import joblib
 import numpy as np
@@ -9,12 +12,16 @@ import pandas as pd
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
 from dotenv import load_dotenv
 from supabase import create_client
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Load environment variables for Supabase
 load_dotenv(override=True)
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-key-super-secret-123")
+app.secret_key = os.environ.get("SECRET_KEY")
+if not app.secret_key:
+    print("Warning: SECRET_KEY not set; using an insecure development key.")
+    app.secret_key = "dev-key-only-for-local-testing"
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # max 25 MB per upload
 
 # --- SUPABASE CONNECTION ---
@@ -33,12 +40,26 @@ def save_prediction(record):
         print("Supabase not configured: prediction was not saved.")
         return
     try:
-        record["user_id"] = session.get("user_id", 1)
+        record["user_id"] = session.get("user_id")
         # patient_id is passed in the 'record' dictionary from the frontend
         supabase.table("predictions").insert(record).execute()
         print("Prediction saved to Supabase.")
     except Exception as db_error:
         print(f"Error saving prediction to Supabase: {db_error}")
+
+
+def login_required(view):
+    """Protect a route: only logged-in users can open it.
+    Pages redirect to the login form; JSON/API routes answer 401."""
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not session.get("user_id"):
+            if request.path.startswith("/predict_") or request.is_json:
+                return jsonify({"error": "Authentication required. Please log in."}), 401
+            flash("Please log in to access this section.", "warning")
+            return redirect(url_for("login", next=request.path))
+        return view(*args, **kwargs)
+    return wrapped
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -72,11 +93,52 @@ def combine_probabilities(mri_probabilities, audio_probabilities):
     return pd.DataFrame([values], columns=FEATURES)
 
 
+def build_partial_comment(prediction, probabilities, mri_probs, audio_probs):
+    """Short, cautious interpretation of the fusion output.
+    It is a simulation from an academic prototype, never a diagnosis."""
+    confidence = max(probabilities.values())
+    base = {
+        "Normal": ("The combined MRI and voice patterns are closest to the cognitively normal "
+                   "profile seen in the training data. In a real clinical setting, a result like "
+                   "this would point to routine follow-up rather than an urgent referral."),
+        "Mild": ("The combined patterns are closest to mild cognitive decline (very mild / mild "
+                 "dementia in the MRI data and Alzheimer-like speech markers in the voice). In a "
+                 "real clinical setting, a result like this would justify a complete "
+                 "neuropsychological evaluation."),
+        "Moderate": ("The combined patterns are closest to moderate dementia in the training data. "
+                     "In a real clinical setting, a result like this would justify a prompt "
+                     "referral to a neurologist."),
+    }[prediction]
+
+    notes = []
+    if confidence < 0.60:
+        notes.append(f"The model is not confident ({confidence:.0%}), so this result should be "
+                     "treated as inconclusive.")
+    mri_label = CLASSES[int(np.argmax(mri_probs))]
+    mri_impaired = mri_label != "Normal"
+    audio_impaired = float(audio_probs[0]) < 0.5  # the voice model is binary (healthy / AD)
+    if mri_impaired != audio_impaired:
+        notes.append(f"The MRI ({mri_label}) and the voice "
+                     f"({'impairment markers' if audio_impaired else 'no impairment markers'}) "
+                     "point in different directions, which lowers the reliability of the "
+                     "combined result.")
+    return {
+        "level": prediction,
+        "confidence": round(confidence, 4),
+        "summary": base,
+        "notes": notes,
+        "disclaimer": ("Simulation only: this prototype was trained on public, synthetically paired "
+                       "data and does not provide a diagnosis. Only a qualified health "
+                       "professional can diagnose."),
+    }
+
+
 # ==========================================
 # API ROUTES
 # ==========================================
 
 @app.route("/predict_fusion", methods=["POST"])
+@login_required
 def predict_fusion():
     try:
         data = request.get_json(silent=True)
@@ -112,6 +174,7 @@ def predict_fusion():
             },
             "notice": "Educational prototype. Not a medical diagnosis."
         }
+        result["comment"] = build_partial_comment(prediction_name, result["probabilities"], mri, audio)
 
         # SAVE EVERYTHING IN A SINGLE ROW (Now including patient_id)
         save_prediction({
@@ -131,6 +194,7 @@ def predict_fusion():
 
 
 @app.route("/predict_mri", methods=["POST"])
+@login_required
 def predict_mri():
     if "file" not in request.files:
         return jsonify({"error": "No file received. Use the 'file' field."}), 400
@@ -165,6 +229,7 @@ def predict_mri():
 
 
 @app.route("/predict_audio", methods=["POST"])
+@login_required
 def predict_audio():
     if "file" not in request.files:
         return jsonify({"error": "No file received. Use the 'file' field."}), 400
@@ -219,18 +284,22 @@ def home():
 
 
 @app.route("/models", methods=["GET"])
+@login_required
 def models_page():
     return render_template("models.html")
 
 @app.route("/model-mri", methods=["GET"])
+@login_required
 def model_mri():
     return render_template("model-mri.html")
 
 @app.route("/model-audio", methods=["GET"])
+@login_required
 def model_audio():
     return render_template("model-audio.html")
 
 @app.route("/model-fusion", methods=["GET"])
+@login_required
 def model_fusion():
     return render_template("model-fusion.html")
     
@@ -252,21 +321,105 @@ def privacy():
     return render_template("privacy.html")
 
 
+# ==========================================
+# AUTHENTICATION (table "users": id, email, password_hash, role, created_at)
+# ==========================================
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+ALLOWED_GENDERS = {"Male", "Female", "Other"}
+
+
+def safe_next(default_endpoint="dashboard"):
+    """Only follow ?next= when it is a path inside this site."""
+    next_url = request.args.get("next", "")
+    if next_url.startswith("/") and not next_url.startswith("//") and not urlparse(next_url).netloc:
+        return next_url
+    return url_for(default_endpoint)
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if session.get("user_id"):
+        return redirect(url_for("dashboard"))
+    if request.method == "POST":
+        email = (request.form.get("email") or "").strip().lower()
+        password = request.form.get("password") or ""
+        confirm = request.form.get("confirm") or ""
+
+        if supabase is None:
+            flash("Database not configured: add SUPABASE_URL and SUPABASE_KEY to the .env file.", "danger")
+            return render_template("register.html", email=email)
+        if not EMAIL_RE.match(email):
+            flash("Please enter a valid email address.", "danger")
+            return render_template("register.html", email=email)
+        if len(password) < 8 or not re.search(r"[A-Za-z]", password) or not re.search(r"\d", password):
+            flash("The password must have at least 8 characters, including letters and numbers.", "danger")
+            return render_template("register.html", email=email)
+        if password != confirm:
+            flash("The passwords do not match.", "danger")
+            return render_template("register.html", email=email)
+        if not request.form.get("habeas_data"):
+            flash("You must authorize the processing of your personal data.", "danger")
+            return render_template("register.html", email=email)
+
+        try:
+            exists = supabase.table("users").select("id").eq("email", email).execute()
+            if exists.data:
+                flash("An account with that email already exists.", "danger")
+                return render_template("register.html", email=email)
+            # The role is always "user": nobody can make themselves admin from the form.
+            supabase.table("users").insert({
+                "email": email,
+                "password_hash": generate_password_hash(password),
+                "role": "user",
+            }).execute()
+        except Exception as e:
+            print(f"Error registering user: {e}")
+            flash("The account could not be created. Please try again later.", "danger")
+            return render_template("register.html", email=email)
+
+        flash("Account created. You can log in now.", "success")
+        return redirect(url_for("login"))
+
+    return render_template("register.html", email="")
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        email = request.form.get("email")
-        session['user_id'] = 1  # Simulated user ID
-        session['user_email'] = email
-        return redirect(url_for('dashboard'))
-    
+        email = (request.form.get("email") or "").strip().lower()
+        password = request.form.get("password") or ""
+
+        if supabase is None:
+            flash("Database not configured: add SUPABASE_URL and SUPABASE_KEY to the .env file.", "danger")
+            return render_template("login.html"), 503
+
+        user = None
+        try:
+            res = supabase.table("users").select("id, email, password_hash, role").eq("email", email).limit(1).execute()
+            user = res.data[0] if res.data else None
+        except Exception as e:
+            print(f"Error during login: {e}")
+            flash("Login is not available right now. Please try again later.", "danger")
+            return render_template("login.html"), 503
+
+        if not user or not user.get("password_hash") or not check_password_hash(user["password_hash"], password):
+            flash("Invalid email or password.", "danger")
+            return render_template("login.html"), 401
+
+        session.clear()
+        session["user_id"] = user["id"]
+        session["user_email"] = user["email"]
+        session["user_role"] = user.get("role") or "user"
+        return redirect(safe_next())
+
     return render_template("login.html")
 
 
 @app.route("/logout", methods=["GET"])
 def logout():
-    session.pop('user_id', None)
-    session.pop('user_email', None)
+    session.clear()
+    flash("You have logged out.", "info")
     return redirect(url_for('home'))
 
 
@@ -274,87 +427,106 @@ def logout():
 # PATIENT MANAGEMENT ROUTES
 # ==========================================
 
+def db_missing_redirect():
+    flash("Database not configured: add SUPABASE_URL and SUPABASE_KEY to the .env file.", "danger")
+    return redirect(url_for('patients_page'))
+
+
+def read_patient_form():
+    """Validate the patient form. Returns (data, error)."""
+    full_name = (request.form.get("full_name") or "").strip()
+    age_raw = (request.form.get("age") or "").strip()
+    gender = (request.form.get("gender") or "").strip()
+    if len(full_name) < 2:
+        return None, "Patient name is required."
+    age = None
+    if age_raw:
+        try:
+            age = int(age_raw)
+        except ValueError:
+            return None, "Age must be a whole number."
+        if not 18 <= age <= 120:
+            return None, "Age must be between 18 and 120."
+    if gender and gender not in ALLOWED_GENDERS:
+        return None, "Invalid gender value."
+    return {"full_name": full_name, "age": age, "gender": gender or None}, None
+
+
 @app.route("/patients", methods=["GET"])
+@login_required
 def patients_page():
-    if not session.get('user_id'):
-        return redirect(url_for('login'))
-    
     patients_list = []
-    if supabase is not None:
+    if supabase is None:
+        flash("Database not configured: patients cannot be loaded. Add SUPABASE_URL and SUPABASE_KEY to the .env file.", "warning")
+    else:
         try:
             # Fetch all patients, ordered by newest first
             response = supabase.table("patients").select("*").order("created_at", desc=True).execute()
             patients_list = response.data
         except Exception as e:
             print(f"Error fetching patients: {e}")
-            
+            flash("Patients could not be loaded.", "danger")
+
     return render_template("patients.html", patients=patients_list)
 
 
 @app.route("/add_patient", methods=["POST"])
+@login_required
 def add_patient():
-    if not session.get('user_id') or supabase is None:
-        return jsonify({"error": "Unauthorized or DB missing"}), 401
+    if supabase is None:
+        return db_missing_redirect()
 
+    data, error = read_patient_form()
+    if error:
+        flash(error, "danger")
+        return redirect(url_for('patients_page'))
     try:
-        full_name = request.form.get("full_name")
-        age = request.form.get("age")
-        gender = request.form.get("gender")
-        
-        if not full_name:
-            flash("Patient name is required.", "danger")
-            return redirect(url_for('patients_page'))
-
-        supabase.table("patients").insert({
-            "user_id": session.get("user_id", 1),
-            "full_name": full_name,
-            "age": int(age) if age else None,
-            "gender": gender
-        }).execute()
-        
+        data["user_id"] = session["user_id"]
+        supabase.table("patients").insert(data).execute()
         flash("Patient added successfully.", "success")
     except Exception as e:
-        flash(f"Error adding patient: {str(e)}", "danger")
-        
+        print(f"Error adding patient: {e}")
+        flash("Error adding patient. Please try again.", "danger")
+
     return redirect(url_for('patients_page'))
 
 
 @app.route("/delete_patient/<int:patient_id>", methods=["POST"])
+@login_required
 def delete_patient(patient_id):
-    if not session.get('user_id') or supabase is None:
-        return redirect(url_for('login'))
-    
+    if supabase is None:
+        return db_missing_redirect()
     try:
-        # Supabase will also delete associated predictions if CASCADE is configured
+        # Delete the patient's predictions first: this works even if the
+        # foreign key predictions.patient_id has no ON DELETE CASCADE.
+        supabase.table("predictions").delete().eq("patient_id", patient_id).execute()
         supabase.table("patients").delete().eq("id", patient_id).execute()
-        flash("Patient deleted successfully.", "success")
+        flash("Patient and their evaluation history deleted.", "success")
     except Exception as e:
-        flash(f"Error deleting patient: {str(e)}", "danger")
-        
+        print(f"Error deleting patient: {e}")
+        flash("Error deleting patient. Please try again.", "danger")
+
     return redirect(url_for('patients_page'))
 
 
 @app.route("/edit_patient/<int:patient_id>", methods=["GET", "POST"])
+@login_required
 def edit_patient(patient_id):
-    if not session.get('user_id') or supabase is None:
-        return redirect(url_for('login'))
+    if supabase is None:
+        return db_missing_redirect()
 
     if request.method == "POST":
+        data, error = read_patient_form()
+        if error:
+            flash(error, "danger")
+            return redirect(url_for('edit_patient', patient_id=patient_id))
         try:
-            full_name = request.form.get("full_name")
-            age = request.form.get("age")
-            gender = request.form.get("gender")
-            
-            supabase.table("patients").update({
-                "full_name": full_name,
-                "age": int(age) if age else None,
-                "gender": gender
-            }).eq("id", patient_id).execute()
-            
+            supabase.table("patients").update(data).eq("id", patient_id).execute()
             flash("Patient updated successfully.", "success")
             return redirect(url_for('patients_page'))
         except Exception as e:
-            flash(f"Error updating patient: {str(e)}", "danger")
+            print(f"Error updating patient: {e}")
+            flash("Error updating patient. Please try again.", "danger")
 
     # Fetch patient for the form (GET)
     try:
@@ -364,18 +536,16 @@ def edit_patient(patient_id):
             return redirect(url_for('patients_page'))
         patient = response.data[0]
     except Exception as e:
-        flash(f"Error fetching patient: {str(e)}", "danger")
+        print(f"Error fetching patient: {e}")
+        flash("Error loading patient.", "danger")
         return redirect(url_for('patients_page'))
 
     return render_template("edit_patient.html", patient=patient)
 
 
 @app.route("/dashboard", methods=["GET"])
-def dashboard():
-    if not session.get('user_id'):
-        flash("Please log in to access the dashboard.", "warning")
-        return redirect(url_for('login'))
-    
+@login_required
+def dashboard():    
     # Fetch patients to populate the dropdown
     patients_list = []
     if supabase is not None:
@@ -389,11 +559,8 @@ def dashboard():
 
 
 @app.route("/history", methods=["GET"])
-def history():
-    if not session.get('user_id'):
-        flash("Please log in to view the history.", "warning")
-        return redirect(url_for('login'))
-    
+@login_required
+def history():    
     predictions = []
     if supabase is not None:
         try:

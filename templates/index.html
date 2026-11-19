@@ -9,8 +9,13 @@
             NeuroFusion AI reduces the omission rate in initial Alzheimer's evaluations by combining magnetic resonance imaging (MRI) analysis with the acoustic analysis of the patient's voice.
         </p>
         <div class="d-flex gap-3 mt-4">
-            <a href="/login" class="btn btn-custom">Start Evaluation</a>
-            <a href="/models" class="btn btn-outline-dark rounded-0">View Models</a>
+                        {% if session.get('user_id') %}
+            <a href="/dashboard" class="btn btn-custom">Start Evaluation</a>
+            <a href="/models" class="btn btn-outline-light rounded-0">View Models</a>
+            {% else %}
+            <a href="/login" class="btn btn-custom">Log In to Start</a>
+            <a href="/project" class="btn btn-outline-light rounded-0">About the Project</a>
+            {% endif %}
         </div>
     </div>
     <div class="col-lg-4 text-end d-none d-lg-block">

@@ -4,9 +4,11 @@ import numpy as np
 import os
 from functools import lru_cache
 
-# Define default paths
-DEFAULT_MODEL_PATH = "models/audio_classifier.pkl"
-DEFAULT_SCALER_PATH = "models/audio_scaler.pkl"
+# Absolute paths, so the module works whatever the working directory is
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_MODEL_PATH = os.path.join(_BASE_DIR, "models", "audio_classifier.pkl")
+DEFAULT_SCALER_PATH = os.path.join(_BASE_DIR, "models", "audio_scaler.pkl")
+MAX_ANALYSIS_SECONDS = 45  # bounded memory on the server
 
 # TRICK: lru_cache loads the model into RAM ONLY ONCE and reuses it
 @lru_cache(maxsize=1)
@@ -29,18 +31,26 @@ def get_audio_prediction(audio_path):
     
     # 2. Extract features from the new audio (19 features)
     try:
-        # Load audio with a maximum duration of 120s (bounded memory)
-        y, sr = librosa.load(audio_path, sr=16000, mono=True, duration=45)
-        
-        # Basic features
-        duration = librosa.get_duration(y=y, sr=sr)
-        
-        # CRITICAL OPTIMIZATION: Use yin instead of piptrack
-        # yin is much lighter and faster to compute pitch, preventing server crashes
-        f0 = librosa.yin(y, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'))
-        # Filter out null values that yin might return
-        pitch_values = f0[~np.isnan(f0)]
+        # Only the first 45 s are loaded (bounded memory on the server)...
+        y, sr = librosa.load(audio_path, sr=16000, mono=True, duration=MAX_ANALYSIS_SECONDS)
+        if len(y) == 0:
+            return {"status": "error", "message": "The audio file is empty."}
+
+        # ...but "duration" is a model feature, so it must be the REAL length of the
+        # recording, as in training (src/audio_features.py). Read it from the file header.
+        try:
+            duration = librosa.get_duration(path=audio_path)
+        except Exception:
+            duration = librosa.get_duration(y=y, sr=sr)
+
+        # Pitch with piptrack, exactly as in training (src/audio_features.py).
+        # yin returns values on a different scale (~100-300 Hz vs ~1400 in training),
+        # which pushed every input outside the scaler's training range.
+        # On <= 45 s of audio piptrack only needs a few MB of RAM.
+        pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
+        pitch_values = pitches[magnitudes > np.median(magnitudes)]
         pitch_mean = np.mean(pitch_values) if len(pitch_values) > 0 else 0.0
+        del pitches, magnitudes
         
         rms = librosa.feature.rms(y=y)[0]
         rms_mean = np.mean(rms)
@@ -63,7 +73,12 @@ def get_audio_prediction(audio_path):
         features.extend(mfcc_means)
         
         # Reshape and Scale
-        features_array = np.array(features).reshape(1, -1)
+        features_array = np.array(features, dtype=float).reshape(1, -1)
+        if not np.isfinite(features_array).all():
+            return {"status": "error", "message": "The audio produced invalid features (silent or corrupted file)."}
+        if hasattr(scaler, "feature_names_in_"):
+            import pandas as pd
+            features_array = pd.DataFrame(features_array, columns=scaler.feature_names_in_)
         features_scaled = scaler.transform(features_array)
         
         # 3. Predict

@@ -16,7 +16,7 @@
                 {% endif %}
             {% endwith %}
 
-            <form action="/login" method="POST">
+            <form action="{{ url_for('login', next=request.args.get('next')) if request.args.get('next') else url_for('login') }}" method="POST">
                 <div class="mb-3">
                     <label class="form-label">Email Address</label>
                     <input type="email" class="form-control" name="email" required>
@@ -37,7 +37,7 @@
             </form>
             
             <div class="text-center mt-4">
-                <p class="small text-muted">Don't have an account? <a href="/register" style="color: var(--primary-teal);">Create one</a></p>
+                 <p class="small text-muted">Don't have an account? <a href="{{ url_for('register') }}" style="color: var(--accent);">Create one</a></p>
             </div>
         </div>
     </div>

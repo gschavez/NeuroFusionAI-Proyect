@@ -1,38 +1,31 @@
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("🔥 DASHBOARD_V2.JS CARGADO Y LISTO 🔥");
-
     const form = document.getElementById('predictionForm');
     const submitBtn = document.getElementById('submitBtn');
     const resultsSection = document.getElementById('resultsSection');
-    
-    // Search and dropdown elements
+    const errorBox = document.getElementById('errorBox');
     const searchInput = document.getElementById('patientSearchInput');
     const patientSelect = document.getElementById('patientSelect');
+    const mriInput = document.getElementById('mriFile');
+    const audioInput = document.getElementById('audioFile');
 
+    let mriPreviewUrl = null;     // object URL of the selected MRI image
+    let recordedWav = null;       // File (WAV 16 kHz mono) recorded in the browser
+    let recordedUrl = null;
+
+    // ------------------------------------------------------------------
+    // Patient search
+    // ------------------------------------------------------------------
     if (searchInput && patientSelect) {
-        // 1. Filter options as the user types
-        searchInput.addEventListener('input', function(e) {
+        searchInput.addEventListener('input', (e) => {
             const filter = e.target.value.toLowerCase();
-            const options = patientSelect.options;
-            
-            for (let i = 0; i < options.length; i++) {
-                const txt = options[i].text.toLowerCase();
-                if (i === 0) continue; // Keep the default option visible
-                
-                if (txt.includes(filter)) {
-                    options[i].style.display = "";
-                } else {
-                    options[i].style.display = "none";
-                }
+            for (let i = 1; i < patientSelect.options.length; i++) {
+                const txt = patientSelect.options[i].text.toLowerCase();
+                patientSelect.options[i].style.display = txt.includes(filter) ? '' : 'none';
             }
         });
-
-        // 2. Auto-select first match when pressing Enter
-        searchInput.addEventListener('keydown', function(e) {
+        searchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                e.preventDefault(); // Prevent form submission
-                
-                // Find the first visible option (skipping the default one)
+                e.preventDefault();
                 for (let i = 1; i < patientSelect.options.length; i++) {
                     if (patientSelect.options[i].style.display !== 'none') {
                         patientSelect.selectedIndex = i;
@@ -43,96 +36,264 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ------------------------------------------------------------------
+    // MRI preview (the same image is shown again next to the prediction)
+    // ------------------------------------------------------------------
+    mriInput.addEventListener('change', () => {
+        const file = mriInput.files[0];
+        if (mriPreviewUrl) URL.revokeObjectURL(mriPreviewUrl);
+        mriPreviewUrl = null;
+        const wrap = document.getElementById('mriPreviewWrap');
+        if (!file) { wrap.classList.add('d-none'); return; }
+        mriPreviewUrl = URL.createObjectURL(file);
+        document.getElementById('mriPreview').src = mriPreviewUrl;
+        document.getElementById('mriPreviewName').textContent = file.name;
+        wrap.classList.remove('d-none');
+    });
+
+    // ------------------------------------------------------------------
+    // Voice recording in the browser -> WAV 16 kHz mono (what the model expects)
+    // ------------------------------------------------------------------
+    const MAX_SECONDS = 120;
+    const SHORT_SECONDS = 30;
+    const recStartBtn = document.getElementById('recStartBtn');
+    const recStopBtn = document.getElementById('recStopBtn');
+    const recStatus = document.getElementById('recStatus');
+    const recTimer = document.getElementById('recTimer');
+    const recResult = document.getElementById('recResult');
+    const recPlayer = document.getElementById('recPlayer');
+    const recInfo = document.getElementById('recInfo');
+    let mediaRecorder = null, chunks = [], stream = null, timerId = null, startedAt = 0;
+
+    const canRecord = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+    if (!canRecord) {
+        document.getElementById('recUnsupported').classList.remove('d-none');
+        recStartBtn.disabled = true;
+    }
+
+    function pickMimeType() {
+        const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+        return types.find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || '';
+    }
+
+    function fmt(sec) {
+        const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+        return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+
+    recStartBtn.addEventListener('click', async () => {
+        hideError();
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+        } catch (err) {
+            showError('Microphone access was denied or is not available: ' + err.message);
+            return;
+        }
+        chunks = [];
+        const mimeType = pickMimeType();
+        mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+        mediaRecorder.onstop = onRecordingStopped;
+        mediaRecorder.start(250);
+        startedAt = Date.now();
+        recTimer.textContent = '00:00';
+        recStatus.classList.remove('d-none');
+        recStartBtn.classList.add('d-none');
+        recStopBtn.classList.remove('d-none');
+        recResult.classList.add('d-none');
+        timerId = setInterval(() => {
+            const sec = (Date.now() - startedAt) / 1000;
+            recTimer.textContent = fmt(sec);
+            if (sec >= MAX_SECONDS) stopRecording();
+        }, 250);
+    });
+
+    recStopBtn.addEventListener('click', stopRecording);
+
+    function stopRecording() {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        clearInterval(timerId);
+        recStatus.classList.add('d-none');
+        recStopBtn.classList.add('d-none');
+        recStartBtn.classList.remove('d-none');
+        recStartBtn.textContent = '● Record again';
+    }
+
+    async function onRecordingStopped() {
+        try {
+            const blob = new Blob(chunks, { type: (mediaRecorder && mediaRecorder.mimeType) || 'audio/webm' });
+            recInfo.textContent = 'Converting recording…';
+            const { wavBlob, seconds } = await toWav16kMono(blob);
+            if (seconds < 1) throw new Error('The recording is empty.');
+            recordedWav = new File([wavBlob], 'browser_recording.wav', { type: 'audio/wav' });
+            if (recordedUrl) URL.revokeObjectURL(recordedUrl);
+            recordedUrl = URL.createObjectURL(wavBlob);
+            recPlayer.src = recordedUrl;
+            recInfo.textContent = `Recorded ${fmt(seconds)} · WAV 16 kHz mono · ${(wavBlob.size / 1024).toFixed(0)} KB — this recording will be used.`;
+            document.getElementById('recShortWarn').classList.toggle('d-none', seconds >= SHORT_SECONDS);
+            recResult.classList.remove('d-none');
+        } catch (err) {
+            recordedWav = null;
+            showError('Could not process the recording: ' + err.message);
+        }
+    }
+
+    document.getElementById('recDiscardBtn').addEventListener('click', () => {
+        recordedWav = null;
+        if (recordedUrl) URL.revokeObjectURL(recordedUrl);
+        recordedUrl = null;
+        recPlayer.removeAttribute('src');
+        recResult.classList.add('d-none');
+        recStartBtn.textContent = '● Start recording';
+    });
+
+    async function toWav16kMono(blob) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AC();
+        const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
+        ctx.close();
+        const rate = 16000;
+        const length = Math.max(1, Math.ceil(decoded.duration * rate));
+        const offline = new OfflineAudioContext(1, length, rate);   // 1 channel = downmix to mono
+        const src = offline.createBufferSource();
+        src.buffer = decoded;
+        src.connect(offline.destination);
+        src.start();
+        const rendered = await offline.startRendering();
+        return { wavBlob: encodeWav(rendered.getChannelData(0), rate), seconds: decoded.duration };
+    }
+
+    function encodeWav(samples, rate) {
+        const buffer = new ArrayBuffer(44 + samples.length * 2);
+        const view = new DataView(buffer);
+        const writeStr = (off, str) => { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)); };
+        writeStr(0, 'RIFF'); view.setUint32(4, 36 + samples.length * 2, true); writeStr(8, 'WAVE');
+        writeStr(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+        view.setUint32(24, rate, true); view.setUint32(28, rate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+        writeStr(36, 'data'); view.setUint32(40, samples.length * 2, true);
+        let off = 44;
+        for (let i = 0; i < samples.length; i++, off += 2) {
+            const s = Math.max(-1, Math.min(1, samples[i]));
+            view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        }
+        return new Blob([view], { type: 'audio/wav' });
+    }
+
+    // Which voice sample will be sent: the active tab decides
+    function selectedAudio() {
+        const recordTabActive = document.getElementById('tab-record').classList.contains('active');
+        if (recordTabActive) return recordedWav ? { file: recordedWav, source: 'recorded in browser' } : null;
+        const f = audioInput.files[0];
+        return f ? { file: f, source: 'uploaded file' } : null;
+    }
+
+    // ------------------------------------------------------------------
+    // Submit: MRI + audio in parallel, then fusion
+    // ------------------------------------------------------------------
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
-        const mriFile = document.getElementById('mriFile').files[0];
-        const audioFile = document.getElementById('audioFile').files[0];
-        
-        const patientId = patientSelect.value; 
+        hideError();
+        const mriFile = mriInput.files[0];
+        const audio = selectedAudio();
+        const patientId = patientSelect ? patientSelect.value : '';
 
-        // Validation in English
-        if (!patientId || patientId === "") {
-            alert("Please search and select a patient from the list first.");
-            return;
-        }
-
-        if (!mriFile || !audioFile) {
-            alert("Please select both an MRI and an Audio file.");
-            return;
-        }
+        if (!patientId) { showError('Please search and select a patient from the list first.'); return; }
+        if (!mriFile) { showError('Please select an MRI image.'); return; }
+        if (!audio) { showError('Please upload a voice file or record one in the “Record voice” tab.'); return; }
 
         submitBtn.disabled = true;
-        submitBtn.textContent = "Processing models... (This may take a few seconds)";
+        submitBtn.textContent = 'Processing models… (the first analysis can take up to a minute)';
 
         try {
-            // 1. Prepare data
-            const mriData = new FormData();
-            mriData.append('file', mriFile);
-            
-            const audioData = new FormData();
-            audioData.append('file', audioFile);
+            const mriData = new FormData(); mriData.append('file', mriFile);
+            const audioData = new FormData(); audioData.append('file', audio.file);
 
-            // 2. Send requests to the backend in parallel
             const [mriRes, audioRes] = await Promise.all([
                 fetch('/predict_mri', { method: 'POST', body: mriData }),
                 fetch('/predict_audio', { method: 'POST', body: audioData })
             ]);
-
-            const mriJson = await mriRes.json();
-            const audioJson = await audioRes.json();
-
-            if (!mriRes.ok) throw new Error(mriJson.error || "MRI Error");
-            if (!audioRes.ok) throw new Error(audioJson.error || "Audio Error");
-
-            // 3. Call Fusion with obtained probabilities
-            const fusionData = {
-                mri_probabilities: mriJson.probabilities,
-                audio_probabilities: audioJson.probabilities,
-                mri_filename: mriFile.name,
-                audio_filename: audioFile.name,
-                patient_id: patientId
-            };
+            const mriJson = await readJson(mriRes);
+            const audioJson = await readJson(audioRes);
+            if (!mriRes.ok) throw new Error('MRI: ' + (mriJson.error || mriRes.status));
+            if (!audioRes.ok) throw new Error('Audio: ' + (audioJson.error || audioRes.status));
 
             const fusionRes = await fetch('/predict_fusion', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(fusionData)
+                body: JSON.stringify({
+                    mri_probabilities: mriJson.probabilities,
+                    audio_probabilities: audioJson.probabilities,
+                    mri_filename: mriFile.name,
+                    audio_filename: audio.file.name,
+                    patient_id: patientId
+                })
             });
+            const fusionJson = await readJson(fusionRes);
+            if (!fusionRes.ok) throw new Error('Fusion: ' + (fusionJson.error || fusionRes.status));
 
-            const fusionJson = await fusionRes.json();
-            if (!fusionRes.ok) throw new Error(fusionJson.error || "Fusion Error");
-
-            // 4. Show results on screen
-            resultsSection.classList.remove('d-none');
-            resultsSection.scrollIntoView({ behavior: 'smooth' });
-
-            // Final Result (Fusion)
-            document.getElementById('finalDiagnosis').textContent = fusionJson.prediction;
-            const finalProb = Math.max(...Object.values(fusionJson.probabilities));
-            document.getElementById('finalConfidence').textContent = `Global confidence: ${(finalProb * 100).toFixed(2)}%`;
-
-            // Update UI Bars
-            updateBar('mriNormal', mriJson.probabilities[0]);
-            updateBar('mriMild', mriJson.probabilities[1]);
-            updateBar('mriModerate', mriJson.probabilities[2]);
-
-            updateBar('audioNormal', audioJson.probabilities[0]);
-            updateBar('audioMild', audioJson.probabilities[1]);
-            updateBar('audioModerate', audioJson.probabilities[2]);
-
+            renderResults(mriJson, audioJson, fusionJson, mriFile, audio);
         } catch (error) {
-            alert("Analysis error: " + error.message);
-            console.error("Detailed error:", error);
+            showError('Analysis error — ' + error.message);
+            console.error(error);
         } finally {
             submitBtn.disabled = false;
-            submitBtn.textContent = "Execute Multimodal Fusion";
+            submitBtn.textContent = 'Execute Multimodal Fusion';
         }
     });
+
+    async function readJson(res) {
+        try { return await res.json(); }
+        catch { return { error: res.status === 401 ? 'Your session expired. Please log in again.' : `Server error (${res.status})` }; }
+    }
+
+    function renderResults(mriJson, audioJson, fusionJson, mriFile, audio) {
+        resultsSection.classList.remove('d-none');
+
+        const final = document.getElementById('finalDiagnosis');
+        final.textContent = fusionJson.prediction;
+        final.className = 'display-3 mb-2 result-' + fusionJson.prediction;
+        const finalProb = Math.max(...Object.values(fusionJson.probabilities));
+        document.getElementById('finalConfidence').textContent = `Global confidence: ${(finalProb * 100).toFixed(2)}%`;
+
+        // Preliminary interpretation (simulation)
+        const c = fusionJson.comment || {};
+        const box = document.getElementById('commentBox');
+        box.className = 'comment-box mt-2 level-' + fusionJson.prediction;
+        document.getElementById('commentSummary').textContent = c.summary || '';
+        const notes = document.getElementById('commentNotes');
+        notes.innerHTML = '';
+        (c.notes || []).forEach(n => { const li = document.createElement('li'); li.textContent = n; notes.appendChild(li); });
+        document.getElementById('commentDisclaimer').textContent = c.disclaimer || fusionJson.notice || '';
+
+        // MRI: show the analyzed image next to its probabilities
+        const img = document.getElementById('mriResultImg');
+        img.src = mriPreviewUrl || URL.createObjectURL(mriFile);
+        document.getElementById('mriClassLabel').textContent = `· ${mriJson.class_name} (${(mriJson.confidence * 100).toFixed(1)}%)`;
+        updateBar('mriNormal', mriJson.probabilities[0]);
+        updateBar('mriMild', mriJson.probabilities[1]);
+        updateBar('mriModerate', mriJson.probabilities[2]);
+
+        // Audio: play back what was analyzed
+        document.getElementById('audioSourceLabel').textContent = '· ' + audio.source;
+        document.getElementById('audioResultPlayer').src = (audio.file === recordedWav && recordedUrl) ? recordedUrl : URL.createObjectURL(audio.file);
+        updateBar('audioNormal', audioJson.probabilities[0]);
+        updateBar('audioMild', audioJson.probabilities[1]);
+        updateBar('audioModerate', audioJson.probabilities[2]);
+
+        resultsSection.scrollIntoView({ behavior: 'smooth' });
+    }
 
     function updateBar(prefix, value) {
         const percentage = (value * 100).toFixed(2);
         document.getElementById(`${prefix}Val`).textContent = `${percentage}%`;
         document.getElementById(`${prefix}Bar`).style.width = `${percentage}%`;
     }
+
+    function showError(msg) {
+        errorBox.textContent = msg;
+        errorBox.classList.remove('d-none');
+        errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    function hideError() { errorBox.classList.add('d-none'); }
 });
