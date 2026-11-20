@@ -22,3 +22,6 @@ dataset/
 
 #env
 .env
+
+*.old
+dataset_small/
